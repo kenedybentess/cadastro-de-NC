@@ -78,14 +78,15 @@ tr:hover td{background:#f7f9fb}
 <div><label>DESCRIÇÃO *<input id="cad_descricao" class="mono" placeholder="Ex: BIELA PLASTICO PRETO L42PRO"></label></div>
 <div><button class="primary" id="btnSalvarCad" onclick="salvarCad()">💾 SALVAR</button></div>
 </div>
-<p class="hint">📥 <b>Importar Excel:</b> planilha com <b>CÓDIGO na coluna A</b> e <b>DESCRIÇÃO na coluna B</b>. Pode ter cabeçalho na 1ª linha. Aceita .xlsx, .xls e .csv. Códigos que já existem não são duplicados.</p>
+<p class="hint">📥 <b>Importar Excel:</b> planilha com <b>CÓDIGO</b> e <b>DESCRIÇÃO</b>. O sistema procura o cabeçalho sozinho (pode estar até na linha 10) e aceita as colunas em qualquer ordem. Aceita .xlsx, .xls, .xlsm, .csv. Códigos que já existem não são duplicados. <button type="button" class="ghost" onclick="baixarModeloImportacao()" style="padding:6px 12px;font-size:12px">⬇ Baixar modelo certinho</button></p>
+<div id="boxImport" style="display:none;background:#eef6ff;border:1px solid #bcd8ff;border-radius:8px;padding:10px 12px;margin-top:8px;font-size:13px"></div>
 <p class="hint" id="msgCad">Preencha código e descrição e clique em SALVAR. Para editar, clique em EDITAR na lista.</p>
 </div>
 <div class="card" style="margin-top:18px">
 <h2>📦 Produtos cadastrados</h2>
 <div class="toolbar"><input id="busca" placeholder="🔍 Buscar por código ou descrição..." oninput="renderCad()"><span class="count" id="countCad"></span>
 <button class="green" onclick="document.getElementById('fileExcel').click()">📥 Importar Excel</button>
-<input type="file" id="fileExcel" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarExcel(this)">
+<input type="file" id="fileExcel" accept=".xlsx,.xls,.xlsm,.xlsb,.csv,.txt,.ods" style="display:none" onchange="importarExcel(this)">
 <button class="ghost" onclick="exportarCSV()">⬇ Exportar CSV</button><button class="ghost" onclick="limparTudo()">🗑 Limpar tudo</button></div>
 <table><thead><tr><th style="width:32%">CÓDIGO</th><th>DESCRIÇÃO</th><th style="width:230px">AÇÕES</th></tr></thead><tbody id="listaCad"></tbody></table>
 <div class="empty" id="vazioCad" style="display:none">Nenhum produto cadastrado ainda.</div>
@@ -339,22 +340,142 @@ function renderCad(){
   document.getElementById('listaCad').innerHTML=f.map(p=>`<tr><td>${p.codigo}</td><td>${p.descricao}</td>
   <td><div class="acao"><button class="ghost" onclick="usarNaEtiqueta(${p.idx})">🏷️ USAR NA ETIQUETA</button><button class="ghost" onclick="editarCad(${p.idx})">✏️ EDITAR</button><button class="red" onclick="excluirCad(${p.idx})">🗑 EXCLUIR</button></div></td></tr>`).join('');
 }
+function baixarModeloImportacao(){
+  const csv = 'CÓDIGO;DESCRIÇÃO\nAUT110290654491;BIELA PLASTICO PRETO L42PRO\n46B4200HS001;EXEMPLO DE PRODUTO\n';
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv'})); a.download='modelo_importacao_produtos.csv'; a.click();
+}
+function mostrarBoxImport(htmlTxt, cor){
+  const b=document.getElementById('boxImport'); if(!b) return;
+  b.style.display='block'; b.innerHTML=htmlTxt; b.style.borderColor=cor||'#bcd8ff'; b.style.background=cor==='#d92d20'?'#ffeaea':'#eef6ff';
+}
+function normalizarCelula(v){
+  if(v===null||v===undefined) return '';
+  if(typeof v==='number'){
+    // Excel tira zero à esquerda e vira 123.0 — volta para texto sem .0
+    if(Number.isInteger(v)) return String(v);
+    return String(v).replace(/\.0$/,'');
+  }
+  return String(v).trim();
+}
+function semAcento(s){ return (s||'').toString().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().trim(); }
+function parseCSVRobusto(texto){
+  // Parser CSV de verdade: respeita aspas, ; , TAB e quebra de linha dentro de aspas
+  texto = texto.replace(/^\ufeff/,'').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+  const linhas = texto.split('\n').filter(l=>l.trim()!=='');
+  if(!linhas.length) return [];
+  // Detecta delimitador pela primeira linha
+  const primeira = linhas[0];
+  let delim = ';';
+  const cont = { ';': (primeira.match(/;/g)||[]).length, ',': (primeira.match(/,/g)||[]).length, '\t': (primeira.match(/\t/g)||[]).length };
+  if(cont[',']>cont[';'] && cont[',']>=cont['\t']) delim=',';
+  else if(cont['\t']>cont[';'] && cont['\t']>cont[',']) delim='\t';
+  const out=[];
+  linhas.forEach(linha=>{
+    const cel=[]; let atual=''; let emAspas=false;
+    for(let i=0;i<linha.length;i++){
+      const ch=linha[i];
+      if(ch==='"'){ if(emAspas && linha[i+1]==='"'){ atual+='"'; i++; } else emAspas=!emAspas; }
+      else if(ch===delim && !emAspas){ cel.push(atual); atual=''; }
+      else atual+=ch;
+    }
+    cel.push(atual);
+    out.push(cel.map(c=>c.trim().replace(/^"|"$/g,'')));
+  });
+  return out;
+}
+function detectarColunas(linhas){
+  // Procura o cabeçalho nas 10 primeiras linhas. Retorna {headerRow, colCodigo, colDesc}
+  for(let r=0;r<Math.min(10, linhas.length);r++){
+    const row = linhas[r]||[];
+    let colCod=-1, colDesc=-1;
+    row.forEach((c,i)=>{
+      const t=semAcento(c);
+      if(colCod===-1 && (t==='CODIGO' || t==='CÓDIGO' || t.includes('CODIGO') || t.includes('COD ') || t==='CODE' || t==='MATERIAL' || t==='PRODUTO' || t==='ITEM' || t==='SKU' || t==='PECAS' || t==='PECA')) colCod=i;
+      if(colDesc===-1 && (t==='DESCRICAO' || t==='DESCRIÇÃO' || t.includes('DESCRI') || t==='DENOMINACAO' || t==='DENOMINAÇÃO' || t.includes('DENOMINA') || t==='NOME' || t==='PRODUTO' && false)) colDesc=i;
+    });
+    // Se achou pelo menos CÓDIGO, usa essa linha como cabeçalho
+    if(colCod!==-1){
+      if(colDesc===-1) colDesc = (colCod===0?1:0); // fallback: coluna ao lado
+      return {headerRow:r, colCodigo:colCod, colDesc:colDesc};
+    }
+  }
+  // Sem cabeçalho: assume A=CÓDIGO, B=DESCRIÇÃO
+  return {headerRow:-1, colCodigo:0, colDesc:1};
+}
 function importarExcel(input){
   const file=input.files[0]; if(!file) return;
-  const msg=document.getElementById('msgCad'); const nome=file.name.toLowerCase(); const reader=new FileReader();
-  reader.onload=function(e){ try{
-    let linhas=[];
-    if(nome.endsWith('.csv')){ linhas=String(e.target.result).split(/\r?\n/).map(l=>l.split(';').length>1?l.split(';'):l.split(',')); }
-    else{ const wb=XLSX.read(e.target.result,{type:'array'}); const ws=wb.Sheets[wb.SheetNames[0]]; linhas=XLSX.utils.sheet_to_json(ws,{header:1,defval:''}); }
-    let inicio=0; if(linhas.length && String(linhas[0][0]||'').toUpperCase().includes('CÓD')) inicio=1;
-    let novos=0,duplicados=0,vazios=0;
-    for(let i=inicio;i<linhas.length;i++){ const codigo=norm(String(linhas[i][0]||'')); const descricao=norm(String(linhas[i][1]||''));
-      if(!codigo||!descricao){ vazios++; continue; } if(produtos.some(p=>p.codigo===codigo)){ duplicados++; continue; }
-      produtos.push({codigo,descricao}); novos++; }
-    persistirCad(); renderCad(); syncEtq();
-    msg.textContent='✅ Importação de "'+file.name+'" concluída: '+novos+' novo(s), '+duplicados+' já existia(m) e foram ignorados, '+vazios+' linha(s) vazia(s)/incompleta(s) ignoradas.'; msg.style.color='#1a9a4b';
-  }catch(err){ msg.textContent='❌ Não consegui ler esse arquivo. Confira se é .xlsx, .xls ou .csv com CÓDIGO na coluna A e DESCRIÇÃO na coluna B.'; msg.style.color='#d92d20'; } input.value=''; };
-  if(nome.endsWith('.csv')) reader.readAsText(file,'UTF-8'); else reader.readAsArrayBuffer(file);
+  const msg=document.getElementById('msgCad');
+  const nome=file.name.toLowerCase();
+  msg.textContent='⏳ Lendo "'+file.name+'" ('+Math.round(file.size/1024)+' KB)... aguarde.'; msg.style.color='#0b4f8a';
+  mostrarBoxImport('⏳ Lendo <b>'+file.name+'</b>...', '#0b4f8a');
+  const reader=new FileReader();
+  reader.onerror=function(){ msg.textContent='❌ Erro ao ler o arquivo no navegador. Tente de novo ou copie para outro arquivo.'; msg.style.color='#d92d20'; input.value=''; };
+  reader.onload=function(e){
+    try{
+      let linhas=[];
+      let abaUsada='';
+      if(nome.endsWith('.csv') || nome.endsWith('.txt')){
+        linhas = parseCSVRobusto(String(e.target.result||''));
+      } else {
+        // XLSX / XLS / XLSM / ODS
+        if(typeof XLSX==='undefined'){
+          throw new Error('BIBLIOTECA_XLSX_NAO_CARREGOU');
+        }
+        const wb = XLSX.read(e.target.result, {type:'array'});
+        if(!wb.SheetNames || !wb.SheetNames.length) throw new Error('PLANILHA_VAZIA');
+        // Usa a primeira aba COM dados (não a primeira vazia)
+        let ws=null;
+        for(const nomeAba of wb.SheetNames){
+          const tentativa = XLSX.utils.sheet_to_json(wb.Sheets[nomeAba], {header:1, defval:'', raw:false});
+          const comDados = tentativa.filter(r=>r.some(c=>String(c||'').trim()!==''));
+          if(comDados.length>0){ ws=wb.Sheets[nomeAba]; abaUsada=nomeAba; linhas=tentativa; break; }
+        }
+        if(!ws) throw new Error('PLANILHA_VAZIA');
+      }
+      if(!linhas.length) throw new Error('ARQUIVO_VAZIO');
+      // Remove linhas totalmente vazias
+      linhas = linhas.filter(r=> (r||[]).some(c=>String(c||'').trim()!==''));
+      const {headerRow, colCodigo, colDesc} = detectarColunas(linhas);
+      const inicio = headerRow>=0 ? headerRow+1 : 0;
+      let novos=0, duplicados=0, vazios=0; const exemplosDuplicados=[]; const exemplosVazios=[];
+      const jaExistiam = new Set(produtos.map(p=>p.codigo));
+      for(let i=inicio;i<linhas.length;i++){
+        const row = linhas[i]||[];
+        const codigo = normalizarCelula(row[colCodigo]).toUpperCase();
+        const descricao = normalizarCelula(row[colDesc]).toUpperCase();
+        // Se a linha for na verdade outro cabeçalho repetido no meio, pula
+        if(semAcento(codigo).includes('CODIGO')) continue;
+        if(!codigo || !descricao){ vazios++; if(exemplosVazios.length<3) exemplosVazios.push('linha '+(i+1)); continue; }
+        if(jaExistiam.has(codigo)){ duplicados++; if(exemplosDuplicados.length<5) exemplosDuplicados.push(codigo); continue; }
+        produtos.push({codigo, descricao}); jaExistiam.add(codigo); novos++;
+      }
+      // Trava a sincronização do Firebase durante o salvamento para ele não desfazer a importação
+      isSyncing = true;
+      persistirCad(); renderCad(); syncEtq();
+      setTimeout(()=>{ isSyncing=false; }, 800);
+      if(novos===0){
+        msg.textContent='⚠️ Nenhum produto novo. '+duplicados+' já existia(m), '+vazios+' linha(s) vazia(s)/incompleta(s). Confira se CÓDIGO e DESCRIÇÃO estão nas colunas certas.';
+        msg.style.color='#b26a00';
+        mostrarBoxImport('⚠️ <b>Nenhum produto novo importado.</b><br>• Linhas lidas: <b>'+linhas.length+'</b> (cabeçalho na linha '+(headerRow+1)+', CÓDIGO na coluna '+(colCodigo+1)+', DESCRIÇÃO na coluna '+(colDesc+1)+')'+(abaUsada?' • Aba: <b>'+abaUsada+'</b>':'')+'<br>• Já existiam: <b>'+duplicados+'</b>'+(exemplosDuplicados.length?' — ex: '+exemplosDuplicados.join(', '):'')+'<br>• Vazias/incompletas: <b>'+vazios+'</b>'+(exemplosVazios.length?' — '+exemplosVazios.join(', '):'')+'<br><br>Se sua planilha tem CÓDIGO e DESCRIÇÃO mas deu 0, clique em <b>Baixar modelo certinho</b> e compare o formato.', '#b26a00');
+      } else {
+        msg.textContent='✅ Importação de "'+file.name+'" concluída: '+novos+' novo(s), '+duplicados+' já existia(m), '+vazios+' vazia(s)/incompleta(s).';
+        msg.style.color='#1a9a4b';
+        mostrarBoxImport('✅ <b>'+novos+' produto(s) importado(s)</b> de <b>'+file.name+'</b>'+(abaUsada?' (aba: '+abaUsada+')':'')+'<br>• Cabeçalho encontrado na linha '+(headerRow+1)+' • CÓDIGO na coluna '+(colCodigo+1)+' • DESCRIÇÃO na coluna '+(colDesc+1)+'<br>• Já existiam e foram ignorados: <b>'+duplicados+'</b> • Vazias: <b>'+vazios+'</b>', '#1a9a4b');
+      }
+    }catch(err){
+      console.error('Importação:', err);
+      let detalhe='';
+      if(err && err.message==='BIBLIOTECA_XLSX_NAO_CARREGOU') detalhe='A biblioteca do Excel (XLSX) não carregou — sem internet, adblock ou firewall bloqueando cdnjs.cloudflare.com. Tente: 1) recarregar a página com internet, 2) desativar adblock para este site, ou 3) salvar sua planilha como <b>.CSV</b> e importar o CSV (CSV não precisa dessa biblioteca).';
+      else if(err && err.message==='PLANILHA_VAZIA') detalhe='A planilha veio vazia ou todas as abas estão vazias. Confira se os dados estão na primeira aba e se o arquivo não está vazio.';
+      else if(err && err.message==='ARQUIVO_VAZIO') detalhe='O arquivo veio vazio. Salve de novo e tente.';
+      else detalhe='Erro: '+(err && err.message ? err.message : err)+'. Confira se é .xlsx, .xls, .xlsm ou .csv com CÓDIGO e DESCRIÇÃO.';
+      msg.textContent='❌ Não consegui importar. Veja o detalhe abaixo.'; msg.style.color='#d92d20';
+      mostrarBoxImport('❌ <b>Não consegui importar "'+file.name+'".</b><br>'+detalhe+'<br><br>Teste rápido: clique em <b>Baixar modelo certinho</b> e tente importar ele. Se o modelo importar, o problema é o formato do seu arquivo — compare os dois.', '#d92d20');
+    }
+    input.value='';
+  };
+  if(nome.endsWith('.csv') || nome.endsWith('.txt')) reader.readAsText(file,'UTF-8');
+  else reader.readAsArrayBuffer(file);
 }
 function exportarCSV(){
   let csv='CÓDIGO;DESCRIÇÃO\n'+produtos.map(p=>p.codigo+';'+p.descricao).join('\n');
