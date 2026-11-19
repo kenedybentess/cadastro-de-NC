@@ -17,9 +17,6 @@ textarea:focus{border-color:#0b4f8a;background:#fff8d6}
 .obs-badge{background:#fff3cd;border:1px solid #ffe69c;border-radius:6px;padding:4px 8px;font-size:13px;color:#664d03;display:inline-block;max-width:100%;white-space:normal}
 .num-badge{background:#0b4f8a;color:#fff;border-radius:6px;padding:4px 10px;font-size:15px;font-weight:900;letter-spacing:2px;display:inline-block}
 .num-input{font-size:18px!important;font-weight:900!important;letter-spacing:3px;text-align:center;background:#eef6ff!important;color:#0b4f8a!important}
-.hist-acao{display:flex;gap:5px;flex-wrap:wrap}.hist-acao button{padding:7px 10px;font-size:12px;white-space:nowrap}
-.btn-edit{background:#0b4f8a;color:#fff}.btn-del{background:#d92d20;color:#fff}.btn-reprint{background:#1a9a4b;color:#fff}
-.banner-edit{background:#fff3cd;border:1px solid #ffe69c;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:13px;display:none}
 input,select{width:100%;border:1px solid #cbd5df;border-radius:8px;padding:12px 10px;font-size:15px;outline:none;margin-top:4px}
 input:focus{border-color:#0b4f8a;background:#fff8d6}
 input.mono{text-transform:uppercase}
@@ -78,15 +75,14 @@ tr:hover td{background:#f7f9fb}
 <div><label>DESCRIÇÃO *<input id="cad_descricao" class="mono" placeholder="Ex: BIELA PLASTICO PRETO L42PRO"></label></div>
 <div><button class="primary" id="btnSalvarCad" onclick="salvarCad()">💾 SALVAR</button></div>
 </div>
-<p class="hint">📥 <b>Importar Excel:</b> planilha com <b>CÓDIGO</b> e <b>DESCRIÇÃO</b>. O sistema procura o cabeçalho sozinho (pode estar até na linha 10) e aceita as colunas em qualquer ordem. Aceita .xlsx, .xls, .xlsm, .csv. Códigos que já existem não são duplicados. <button type="button" class="ghost" onclick="baixarModeloImportacao()" style="padding:6px 12px;font-size:12px">⬇ Baixar modelo certinho</button></p>
-<div id="boxImport" style="display:none;background:#eef6ff;border:1px solid #bcd8ff;border-radius:8px;padding:10px 12px;margin-top:8px;font-size:13px"></div>
+<p class="hint">📥 <b>Importar Excel:</b> planilha com <b>CÓDIGO na coluna A</b> e <b>DESCRIÇÃO na coluna B</b>. Pode ter cabeçalho na 1ª linha. Aceita .xlsx, .xls e .csv. Códigos que já existem não são duplicados.</p>
 <p class="hint" id="msgCad">Preencha código e descrição e clique em SALVAR. Para editar, clique em EDITAR na lista.</p>
 </div>
 <div class="card" style="margin-top:18px">
 <h2>📦 Produtos cadastrados</h2>
 <div class="toolbar"><input id="busca" placeholder="🔍 Buscar por código ou descrição..." oninput="renderCad()"><span class="count" id="countCad"></span>
 <button class="green" onclick="document.getElementById('fileExcel').click()">📥 Importar Excel</button>
-<input type="file" id="fileExcel" accept=".xlsx,.xls,.xlsm,.xlsb,.csv,.txt,.ods" style="display:none" onchange="importarExcel(this)">
+<input type="file" id="fileExcel" accept=".xlsx,.xls,.csv" style="display:none" onchange="importarExcel(this)">
 <button class="ghost" onclick="exportarCSV()">⬇ Exportar CSV</button><button class="ghost" onclick="limparTudo()">🗑 Limpar tudo</button></div>
 <table><thead><tr><th style="width:32%">CÓDIGO</th><th>DESCRIÇÃO</th><th style="width:230px">AÇÕES</th></tr></thead><tbody id="listaCad"></tbody></table>
 <div class="empty" id="vazioCad" style="display:none">Nenhum produto cadastrado ainda.</div>
@@ -96,7 +92,6 @@ tr:hover td{background:#f7f9fb}
 <section id="tela-etiqueta" style="display:none">
 <div class="etq-layout">
 <div class="card etq-form">
-<div id="bannerEdit" class="banner-edit">✏️ <b id="bannerEditTexto">Editando histórico</b><br><span id="bannerEditSub" style="color:#555"></span> <button type="button" class="ghost" onclick="cancelarEdicaoHist()" style="padding:6px 12px;font-size:12px;margin-left:8px">✖ Cancelar</button></div>
 <h2>📋 Preencher informações — Coluna B</h2>
 <table><tr><th>CAMPO</th><th>PREENCHER</th></tr>
 <tr><td>Nº ETIQUETA:<br><span style="font-weight:400;font-size:11px;color:#666">Único, 5 dígitos</span></td><td><div style="display:flex;gap:8px;align-items:center"><input id="numero_etiqueta" class="mono num-input" readonly value="" placeholder="-----" style="flex:1"><button type="button" class="ghost" onclick="gerarNovoNumero()" style="white-space:nowrap">↻ Novo</button></div></td></tr>
@@ -113,7 +108,7 @@ tr:hover td{background:#f7f9fb}
 <tr><td>OBSERVAÇÃO: <br><span style="font-weight:400;font-size:11px;color:#666">Só no histórico,<br>não sai na etiqueta</span></td><td><textarea id="observacao" class="mono" rows="3" maxlength="500" placeholder="Ex: MATERIAL AGUARDANDO ANÁLISE..."></textarea></td></tr>
 </table>
 <div class="btns"><button class="primary" onclick="imprimirEtiqueta()">🖨️ IMPRIMIR ETIQUETA</button><button class="green" onclick="exemploEtq()">Preencher exemplo</button><button class="ghost" onclick="limparEtq()">Limpar</button></div>
-<p class="hint">🧹 Depois de imprimir, todos os campos são limpos automaticamente para a próxima etiqueta.<br>💡 Digite o CÓDIGO PEÇA e a DENOMINAÇÃO puxa sozinha do cadastro. Se o código não existir, digite a descrição na mão.</p>
+<p class="hint">💡 Digite o CÓDIGO PEÇA e a DENOMINAÇÃO puxa sozinha do cadastro. Se o código não existir, digite a descrição na mão.</p>
 </div>
 <div class="card"><h2 class="no-print">🏷️ Prévia da etiqueta</h2>
 <div class="no-print" style="background:#f0f4f8;border-radius:10px;padding:12px;margin-bottom:12px"><h3 style="margin:0 0 10px;font-size:14px">📐 Ajustar etiqueta</h3>
@@ -152,9 +147,9 @@ tr:hover td{background:#f7f9fb}
 <button class="ghost" onclick="exportarHistCSV()">⬇ Exportar histórico (CSV)</button>
 <button class="red" onclick="limparHist()">🗑 Limpar histórico</button>
 </div>
-<table><thead><tr><th style="width:90px">Nº ETIQUETA</th><th style="width:170px">DATA / HORA</th><th>ETIQUETA IMPRESSA</th><th style="width:28%">OBSERVAÇÃO</th><th style="width:210px">AÇÕES</th></tr></thead><tbody id="listaHist"></tbody></table>
+<table><thead><tr><th style="width:90px">Nº ETIQUETA</th><th style="width:170px">DATA / HORA</th><th>ETIQUETA IMPRESSA</th><th style="width:28%">OBSERVAÇÃO</th></tr></thead><tbody id="listaHist"></tbody></table>
 <div class="empty" id="vazioHist" style="display:none">Nenhuma impressão registrada ainda.</div>
-<p class="hint">✏️ <b>Editar</b> carrega no formulário e atualiza o registro (mantém o número). &nbsp; 🖨️ <b>Reimprimir</b> imprime de novo com o mesmo número, sem criar registro novo. &nbsp; 🗑️ <b>Excluir</b> apaga só aquela linha.<br>Somente impressões ficam registradas aqui. Cadastro, edição, exclusão, importação e exportação NÃO aparecem no histórico.</p>
+<p class="hint">Somente impressões ficam registradas aqui. Cadastro, edição, exclusão, importação e exportação NÃO aparecem no histórico.</p>
 </div>
 </section>
 </main>
@@ -165,8 +160,7 @@ tr:hover td{background:#f7f9fb}
 <script>
 const $=id=>document.getElementById(id);
 let telaAtual='cadastro';
-let limparAposImprimir=false;
-function safeParse(txt, fallback){ try{ return JSON.parse(txt||''); }catch(e){ return fallback; } }
+function safeParse(txt, fallback){ try{ return JSON.parse(txt||''); }catch(e){ console.warn('localStorage corrompido, usando vazio:', e); return fallback; } }
 /* ---------- FIREBASE ---------- */
 const FIREBASE_URL = 'https://cadastro-de-nc-default-rtdb.firebaseio.com/';
 // PREENCHA com a config do seu projeto (Console > Configurações do projeto > Geral > Seus apps)
@@ -221,17 +215,14 @@ function mostrar(tela){
     const telas = {'cadastro':'tela-cadastro','etiqueta':'tela-etiqueta','historico':'tela-historico'};
     Object.keys(telas).forEach(k=>{ const el=document.getElementById(telas[k]); if(el) el.style.display = (k===tela?'block':'none'); });
     [['abaCad','cadastro'],['abaEtq','etiqueta'],['abaHist','historico']].forEach(([id,t])=>{ const b=document.getElementById(id); if(b) b.classList.toggle('ativo', t===tela); });
-    if(tela==='etiqueta'){ try{ syncEtq(); }catch(e){ console.error('syncEtq:', e); } }
-    if(tela==='historico'){ try{ renderHist(); }catch(e){ console.error('renderHist:', e); } }
+    if(tela==='etiqueta'){ try{ syncEtq(); }catch(e){ console.error('syncEtq falhou, mas a página abriu:', e); } }
+    if(tela==='historico'){ try{ renderHist(); }catch(e){ console.error('renderHist falhou, mas a página abriu:', e); } }
     window.scrollTo(0,0);
-  }catch(e){ console.error('mostrar falhou:', e); }
+  }catch(e){ console.error('mostrar falhou:', e); alert('Erro ao trocar de página: '+e.message+'\nAperte F12 > Console e me mande o erro.'); }
 }
 window.mostrar = mostrar;
 /* ---------- HISTÓRICO — SOMENTE IMPRESSÃO ---------- */
 const KEY_HIST='elgin_historico_impressao_v1';
-const KEY_HIST_LIMPO='elgin_historico_limpo_em_v1';
-let historicoLimpoEm = parseInt(localStorage.getItem(KEY_HIST_LIMPO)||'0',10) || 0;
-let ignorarEcoHistorico = false;
 let historico = safeParse(localStorage.getItem(KEY_HIST), []); if(!Array.isArray(historico)) historico=[];
 // Se vier registro antigo de outro tipo, mantém só impressão
 historico = historico.filter(h => !h.acao || h.acao==='IMPRESSÃO');
@@ -251,70 +242,43 @@ function gerarNovoNumero(){ const n=gerarNumeroUnico(); if(n && $('numero_etique
 function registrarImpressao(detalhe, observacao, numero){
   const agora = new Date();
   const dataHora = agora.toLocaleDateString('pt-BR')+' '+agora.toLocaleTimeString('pt-BR');
-  const obs=(observacao||'').trim().toUpperCase(); const num=(numero||($('numero_etiqueta')?$('numero_etiqueta').value:'')||'').trim();
-  const item = { dataHora, acao:'IMPRESSÃO', detalhe, observacao:obs, numero:num,
-    codigoProduto: $('codigo')?$('codigo').value:'', peca: $('peca')?$('peca').value:'',
-    denominacao: $('denominacao')?$('denominacao').value:'', fornecedor: $('fornecedor')?$('fornecedor').value:'',
-    reserva: $('reserva')?$('reserva').value:'', nf: $('nf')?$('nf').value:'', qtd: $('qtd')?$('qtd').value:'',
-    nc: $('nc')?$('nc').value:'', data: $('data')?$('data').value:'', visto: $('visto')?$('visto').value:'' };
-  historico.unshift(item);
+  const obs=(observacao||'').trim().toUpperCase(); const num=(numero||($('numero_etiqueta')?$('numero_etiqueta').value:'')||'').trim(); historico.unshift({dataHora, acao:'IMPRESSÃO', detalhe, observacao:obs, numero:num});
   if(historico.length>2000) historico = historico.slice(0,2000);
-  persistirHistorico();
+  localStorage.setItem(KEY_HIST, JSON.stringify(historico));
+  salvarFirebase('cadastro_nc/historico_impressao', historico);
 }
-function persistirHistorico(){ localStorage.setItem(KEY_HIST, JSON.stringify(historico)); salvarFirebase('cadastro_nc/historico_impressao', historico); }
-function extrairCampo(txt, rotulo){ if(!txt) return ''; const m = txt.match(new RegExp(rotulo + '\\s*([^|]+)', 'i')); return m ? m[1].trim() : ''; }
-function itemParaCampos(h){
-  if(!h) return {};
-  if(h.codigoProduto || h.peca) return h;
-  const d=h.detalhe||''; const partes=d.split('|').map(s=>s.trim());
-  const get=(p)=>{ const x=partes.find(v=>v.toUpperCase().startsWith(p)); return x ? x.slice(p.length).trim() : ''; };
-  return { codigoProduto:get('CÓDIGO DO PRODUTO'), peca:get('CÓDIGO'), denominacao:partes[3]||'', nf:get('NF'), qtd:get('QTD'), fornecedor:get('FORNECEDOR'), reserva:get('RESERVA'), nc:'', data:'', visto:get('VISTO'), _dataTexto:get('DATA') };
-}
-function dataTextoParaInput(txt){ if(!txt) return ''; const m=txt.match(/(\d{2})\/(\d{2})\/(\d{4})/); return m ? m[3]+'-'+m[2]+'-'+m[1] : ''; }
 function renderHist(){
   const busca = (document.getElementById('buscaHist').value||'').trim().toUpperCase();
-  const f = historico.map((h,i)=>({...h, _idx:i})).filter(h => !busca || (h.dataHora+' '+h.detalhe+' '+(h.observacao||'')+' '+(h.numero||'')).toUpperCase().includes(busca));
+  const f = historico.filter(h => !busca || (h.dataHora+' '+h.detalhe+' '+(h.observacao||'')+' '+(h.numero||'')).toUpperCase().includes(busca));
   document.getElementById('countHist').textContent = f.length+' impressão(ões) • Total: '+historico.length;
   document.getElementById('vazioHist').style.display = f.length?'none':'block';
-  document.getElementById('listaHist').innerHTML = f.map(h=>`<tr><td>${h.numero ? `<span class="num-badge">${h.numero}</span>` : `<span style="color:#999">—</span>`}</td><td>${h.dataHora}</td><td>${h.detalhe}</td><td>${h.observacao ? `<span class="obs-badge">${h.observacao}</span>` : `<span style="color:#999">—</span>`}</td><td><div class="hist-acao"><button class="btn-edit" onclick="editarHistItem(${h._idx})">✏️ Editar</button><button class="btn-reprint" onclick="reimprimirHistItem(${h._idx})">🖨️ Reimprimir</button><button class="btn-del" onclick="excluirHistItem(${h._idx})">🗑️ Excluir</button></div></td></tr>`).join('');
+    document.getElementById('listaHist').innerHTML = f.map(h=>`<tr><td>${h.numero ? `<span class="num-badge">${h.numero}</span>` : `<span style="color:#999">—</span>`}</td><td>${h.dataHora}</td><td>${h.detalhe}</td><td>${h.observacao ? `<span class="obs-badge">${h.observacao}</span>` : `<span style="color:#999">—</span>`}</td></tr>`).join('');
 }
-let editandoHistoricoIdx = null;
-let reimprimindoHistoricoIdx = null;
-function carregarItemNoFormulario(h){
-  const c = itemParaCampos(h);
-  if($('numero_etiqueta')) $('numero_etiqueta').value = h.numero || '';
-  if($('codigo')) $('codigo').value = c.codigoProduto||'';
-  if($('peca')) $('peca').value = c.peca||'';
-  if($('denominacao')){ $('denominacao').value = c.denominacao||''; $('denominacao').dataset.manual='1'; }
-  if($('fornecedor')) $('fornecedor').value = c.fornecedor||'';
-  if($('reserva')) $('reserva').value = c.reserva||'';
-  if($('nf')) $('nf').value = c.nf||'';
-  if($('qtd')) $('qtd').value = c.qtd||'';
-  if($('nc')) $('nc').value = c.nc||'';
-  if($('data')) $('data').value = c.data || dataTextoParaInput(c._dataTexto||'');
-  if($('visto')) $('visto').value = c.visto||'';
-  if($('observacao')) $('observacao').value = h.observacao||'';
-  syncEtq();
-}
-function mostrarBannerEdit(t,s){ const b=$('bannerEdit'); if(!b) return; $('bannerEditTexto').textContent=t; $('bannerEditSub').textContent=s||''; b.style.display='block'; }
-function esconderBannerEdit(){ const b=$('bannerEdit'); if(b) b.style.display='none'; }
-function cancelarEdicaoHist(){ editandoHistoricoIdx=null; reimprimindoHistoricoIdx=null; esconderBannerEdit(); limparEtq(); }
-function editarHistItem(idx){ const h=historico[idx]; if(!h) return; editandoHistoricoIdx=idx; reimprimindoHistoricoIdx=null; carregarItemNoFormulario(h); mostrarBannerEdit('✏️ Editando histórico Nº '+(h.numero||'—'), 'Corrija e clique em IMPRIMIR. Vai ATUALIZAR este registro (mantém o mesmo número).'); mostrar('etiqueta'); }
-function excluirHistItem(idx){ const h=historico[idx]; if(!h) return; if(!confirm('Excluir este registro?\nNº '+(h.numero||'—')+' • '+h.dataHora)) return; historico.splice(idx,1); if(editandoHistoricoIdx===idx){editandoHistoricoIdx=null; esconderBannerEdit();} else if(editandoHistoricoIdx!==null && editandoHistoricoIdx>idx) editandoHistoricoIdx--; persistirHistorico(); renderHist(); }
-function reimprimirHistItem(idx){ const h=historico[idx]; if(!h) return; reimprimindoHistoricoIdx=idx; editandoHistoricoIdx=null; carregarItemNoFormulario(h); mostrarBannerEdit('🖨️ Reimprimindo etiqueta Nº '+(h.numero||'—'), 'Vai imprimir com o MESMO número. NÃO vai criar novo registro.'); mostrar('etiqueta'); limparAposImprimir=true; setTimeout(()=>{ window.print(); }, 300); }
-window.editarHistItem=editarHistItem; window.excluirHistItem=excluirHistItem; window.reimprimirHistItem=reimprimirHistItem; window.cancelarEdicaoHist=cancelarEdicaoHist;
 function exportarHistCSV(){
   let csv='Nº ETIQUETA;DATA / HORA;ETIQUETA IMPRESSA;OBSERVAÇÃO\n'+historico.map(h=>(h.numero||'')+';'+h.dataHora+';'+h.detalhe.replaceAll(';',',')+';'+(h.observacao||'').replaceAll(';',',')).join('\n');
   const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv'})); a.download='historico_impressao_nc.csv'; a.click();
 }
-function limparHist(){
-  if(!confirm('Apagar TODO o histórico de impressão? Isso apaga em TODOS os computadores.')) return;
-  historicoLimpoEm = Date.now(); localStorage.setItem(KEY_HIST_LIMPO, String(historicoLimpoEm));
-  historico = []; localStorage.setItem(KEY_HIST, JSON.stringify(historico)); renderHist();
-  if(firebaseOK && db){
-    ignorarEcoHistorico = true;
-    db.ref('cadastro_nc/historico_meta').set({limpoEm: historicoLimpoEm}).then(()=> db.ref('cadastro_nc/historico_impressao').remove()).then(()=>{ setTimeout(()=>{ ignorarEcoHistorico=false; }, 500); }).catch(err=>{ ignorarEcoHistorico=false; alert('Apagou só neste PC. Erro no Firebase: '+(err.code||err.message)); });
-  }
+function limparHist(){ if(!confirm('Apagar TODO o histórico de impressão?')) return; historico=[]; localStorage.setItem(KEY_HIST, JSON.stringify(historico)); salvarFirebase('cadastro_nc/historico_impressao', historico); renderHist(); }
+/* ---------- CADASTRO ---------- */
+const KEY='elgin_cadastro_produtos_v1';
+let produtos = safeParse(localStorage.getItem(KEY), []); if(!Array.isArray(produtos)) produtos=[];
+let editando = null;
+if(produtos.length===0){ produtos=[{codigo:'AUT110290654491',descricao:'BIELA PLASTICO PRETO L42PRO'}]; persistirCad(); }
+function persistirCad(){ localStorage.setItem(KEY, JSON.stringify(produtos)); salvarFirebase('cadastro_nc/produtos', produtos); }
+function norm(s){ return (s||'').trim().toUpperCase(); }
+function buscarDescricao(codigo){ const p = produtos.find(x=>x.codigo===norm(codigo)); return p? p.descricao : ''; }
+function salvarCad(){
+  const codigo=norm(document.getElementById('cad_codigo').value), descricao=norm(document.getElementById('cad_descricao').value);
+  const msg=document.getElementById('msgCad');
+  if(!codigo||!descricao){ msg.textContent='⚠️ Preencha CÓDIGO e DESCRIÇÃO.'; msg.style.color='#d92d20'; return; }
+  const dup=produtos.findIndex((p,i)=>p.codigo===codigo && i!==editando);
+  if(dup!==-1){ msg.textContent='⚠️ Esse CÓDIGO já está cadastrado: '+codigo; msg.style.color='#d92d20'; return; }
+  if(editando!==null){ produtos[editando]={codigo,descricao}; msg.textContent='✅ Produto atualizado: '+codigo+' — '+descricao; }
+  else{ produtos.unshift({codigo,descricao}); msg.textContent='✅ Produto cadastrado: '+codigo+' — '+descricao; }
+  msg.style.color='#1a9a4b'; editando=null;
+  document.getElementById('btnSalvarCad').textContent='💾 SALVAR';
+  document.getElementById('cad_codigo').value=''; document.getElementById('cad_descricao').value='';
+  document.getElementById('cad_codigo').focus(); persistirCad(); renderCad(); syncEtq();
 }
 function editarCad(i){
   const p=produtos[i];
@@ -340,142 +304,22 @@ function renderCad(){
   document.getElementById('listaCad').innerHTML=f.map(p=>`<tr><td>${p.codigo}</td><td>${p.descricao}</td>
   <td><div class="acao"><button class="ghost" onclick="usarNaEtiqueta(${p.idx})">🏷️ USAR NA ETIQUETA</button><button class="ghost" onclick="editarCad(${p.idx})">✏️ EDITAR</button><button class="red" onclick="excluirCad(${p.idx})">🗑 EXCLUIR</button></div></td></tr>`).join('');
 }
-function baixarModeloImportacao(){
-  const csv = 'CÓDIGO;DESCRIÇÃO\nAUT110290654491;BIELA PLASTICO PRETO L42PRO\n46B4200HS001;EXEMPLO DE PRODUTO\n';
-  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv'})); a.download='modelo_importacao_produtos.csv'; a.click();
-}
-function mostrarBoxImport(htmlTxt, cor){
-  const b=document.getElementById('boxImport'); if(!b) return;
-  b.style.display='block'; b.innerHTML=htmlTxt; b.style.borderColor=cor||'#bcd8ff'; b.style.background=cor==='#d92d20'?'#ffeaea':'#eef6ff';
-}
-function normalizarCelula(v){
-  if(v===null||v===undefined) return '';
-  if(typeof v==='number'){
-    // Excel tira zero à esquerda e vira 123.0 — volta para texto sem .0
-    if(Number.isInteger(v)) return String(v);
-    return String(v).replace(/\.0$/,'');
-  }
-  return String(v).trim();
-}
-function semAcento(s){ return (s||'').toString().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().trim(); }
-function parseCSVRobusto(texto){
-  // Parser CSV de verdade: respeita aspas, ; , TAB e quebra de linha dentro de aspas
-  texto = texto.replace(/^\ufeff/,'').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
-  const linhas = texto.split('\n').filter(l=>l.trim()!=='');
-  if(!linhas.length) return [];
-  // Detecta delimitador pela primeira linha
-  const primeira = linhas[0];
-  let delim = ';';
-  const cont = { ';': (primeira.match(/;/g)||[]).length, ',': (primeira.match(/,/g)||[]).length, '\t': (primeira.match(/\t/g)||[]).length };
-  if(cont[',']>cont[';'] && cont[',']>=cont['\t']) delim=',';
-  else if(cont['\t']>cont[';'] && cont['\t']>cont[',']) delim='\t';
-  const out=[];
-  linhas.forEach(linha=>{
-    const cel=[]; let atual=''; let emAspas=false;
-    for(let i=0;i<linha.length;i++){
-      const ch=linha[i];
-      if(ch==='"'){ if(emAspas && linha[i+1]==='"'){ atual+='"'; i++; } else emAspas=!emAspas; }
-      else if(ch===delim && !emAspas){ cel.push(atual); atual=''; }
-      else atual+=ch;
-    }
-    cel.push(atual);
-    out.push(cel.map(c=>c.trim().replace(/^"|"$/g,'')));
-  });
-  return out;
-}
-function detectarColunas(linhas){
-  // Procura o cabeçalho nas 10 primeiras linhas. Retorna {headerRow, colCodigo, colDesc}
-  for(let r=0;r<Math.min(10, linhas.length);r++){
-    const row = linhas[r]||[];
-    let colCod=-1, colDesc=-1;
-    row.forEach((c,i)=>{
-      const t=semAcento(c);
-      if(colCod===-1 && (t==='CODIGO' || t==='CÓDIGO' || t.includes('CODIGO') || t.includes('COD ') || t==='CODE' || t==='MATERIAL' || t==='PRODUTO' || t==='ITEM' || t==='SKU' || t==='PECAS' || t==='PECA')) colCod=i;
-      if(colDesc===-1 && (t==='DESCRICAO' || t==='DESCRIÇÃO' || t.includes('DESCRI') || t==='DENOMINACAO' || t==='DENOMINAÇÃO' || t.includes('DENOMINA') || t==='NOME' || t==='PRODUTO' && false)) colDesc=i;
-    });
-    // Se achou pelo menos CÓDIGO, usa essa linha como cabeçalho
-    if(colCod!==-1){
-      if(colDesc===-1) colDesc = (colCod===0?1:0); // fallback: coluna ao lado
-      return {headerRow:r, colCodigo:colCod, colDesc:colDesc};
-    }
-  }
-  // Sem cabeçalho: assume A=CÓDIGO, B=DESCRIÇÃO
-  return {headerRow:-1, colCodigo:0, colDesc:1};
-}
 function importarExcel(input){
   const file=input.files[0]; if(!file) return;
-  const msg=document.getElementById('msgCad');
-  const nome=file.name.toLowerCase();
-  msg.textContent='⏳ Lendo "'+file.name+'" ('+Math.round(file.size/1024)+' KB)... aguarde.'; msg.style.color='#0b4f8a';
-  mostrarBoxImport('⏳ Lendo <b>'+file.name+'</b>...', '#0b4f8a');
-  const reader=new FileReader();
-  reader.onerror=function(){ msg.textContent='❌ Erro ao ler o arquivo no navegador. Tente de novo ou copie para outro arquivo.'; msg.style.color='#d92d20'; input.value=''; };
-  reader.onload=function(e){
-    try{
-      let linhas=[];
-      let abaUsada='';
-      if(nome.endsWith('.csv') || nome.endsWith('.txt')){
-        linhas = parseCSVRobusto(String(e.target.result||''));
-      } else {
-        // XLSX / XLS / XLSM / ODS
-        if(typeof XLSX==='undefined'){
-          throw new Error('BIBLIOTECA_XLSX_NAO_CARREGOU');
-        }
-        const wb = XLSX.read(e.target.result, {type:'array'});
-        if(!wb.SheetNames || !wb.SheetNames.length) throw new Error('PLANILHA_VAZIA');
-        // Usa a primeira aba COM dados (não a primeira vazia)
-        let ws=null;
-        for(const nomeAba of wb.SheetNames){
-          const tentativa = XLSX.utils.sheet_to_json(wb.Sheets[nomeAba], {header:1, defval:'', raw:false});
-          const comDados = tentativa.filter(r=>r.some(c=>String(c||'').trim()!==''));
-          if(comDados.length>0){ ws=wb.Sheets[nomeAba]; abaUsada=nomeAba; linhas=tentativa; break; }
-        }
-        if(!ws) throw new Error('PLANILHA_VAZIA');
-      }
-      if(!linhas.length) throw new Error('ARQUIVO_VAZIO');
-      // Remove linhas totalmente vazias
-      linhas = linhas.filter(r=> (r||[]).some(c=>String(c||'').trim()!==''));
-      const {headerRow, colCodigo, colDesc} = detectarColunas(linhas);
-      const inicio = headerRow>=0 ? headerRow+1 : 0;
-      let novos=0, duplicados=0, vazios=0; const exemplosDuplicados=[]; const exemplosVazios=[];
-      const jaExistiam = new Set(produtos.map(p=>p.codigo));
-      for(let i=inicio;i<linhas.length;i++){
-        const row = linhas[i]||[];
-        const codigo = normalizarCelula(row[colCodigo]).toUpperCase();
-        const descricao = normalizarCelula(row[colDesc]).toUpperCase();
-        // Se a linha for na verdade outro cabeçalho repetido no meio, pula
-        if(semAcento(codigo).includes('CODIGO')) continue;
-        if(!codigo || !descricao){ vazios++; if(exemplosVazios.length<3) exemplosVazios.push('linha '+(i+1)); continue; }
-        if(jaExistiam.has(codigo)){ duplicados++; if(exemplosDuplicados.length<5) exemplosDuplicados.push(codigo); continue; }
-        produtos.push({codigo, descricao}); jaExistiam.add(codigo); novos++;
-      }
-      // Trava a sincronização do Firebase durante o salvamento para ele não desfazer a importação
-      isSyncing = true;
-      persistirCad(); renderCad(); syncEtq();
-      setTimeout(()=>{ isSyncing=false; }, 800);
-      if(novos===0){
-        msg.textContent='⚠️ Nenhum produto novo. '+duplicados+' já existia(m), '+vazios+' linha(s) vazia(s)/incompleta(s). Confira se CÓDIGO e DESCRIÇÃO estão nas colunas certas.';
-        msg.style.color='#b26a00';
-        mostrarBoxImport('⚠️ <b>Nenhum produto novo importado.</b><br>• Linhas lidas: <b>'+linhas.length+'</b> (cabeçalho na linha '+(headerRow+1)+', CÓDIGO na coluna '+(colCodigo+1)+', DESCRIÇÃO na coluna '+(colDesc+1)+')'+(abaUsada?' • Aba: <b>'+abaUsada+'</b>':'')+'<br>• Já existiam: <b>'+duplicados+'</b>'+(exemplosDuplicados.length?' — ex: '+exemplosDuplicados.join(', '):'')+'<br>• Vazias/incompletas: <b>'+vazios+'</b>'+(exemplosVazios.length?' — '+exemplosVazios.join(', '):'')+'<br><br>Se sua planilha tem CÓDIGO e DESCRIÇÃO mas deu 0, clique em <b>Baixar modelo certinho</b> e compare o formato.', '#b26a00');
-      } else {
-        msg.textContent='✅ Importação de "'+file.name+'" concluída: '+novos+' novo(s), '+duplicados+' já existia(m), '+vazios+' vazia(s)/incompleta(s).';
-        msg.style.color='#1a9a4b';
-        mostrarBoxImport('✅ <b>'+novos+' produto(s) importado(s)</b> de <b>'+file.name+'</b>'+(abaUsada?' (aba: '+abaUsada+')':'')+'<br>• Cabeçalho encontrado na linha '+(headerRow+1)+' • CÓDIGO na coluna '+(colCodigo+1)+' • DESCRIÇÃO na coluna '+(colDesc+1)+'<br>• Já existiam e foram ignorados: <b>'+duplicados+'</b> • Vazias: <b>'+vazios+'</b>', '#1a9a4b');
-      }
-    }catch(err){
-      console.error('Importação:', err);
-      let detalhe='';
-      if(err && err.message==='BIBLIOTECA_XLSX_NAO_CARREGOU') detalhe='A biblioteca do Excel (XLSX) não carregou — sem internet, adblock ou firewall bloqueando cdnjs.cloudflare.com. Tente: 1) recarregar a página com internet, 2) desativar adblock para este site, ou 3) salvar sua planilha como <b>.CSV</b> e importar o CSV (CSV não precisa dessa biblioteca).';
-      else if(err && err.message==='PLANILHA_VAZIA') detalhe='A planilha veio vazia ou todas as abas estão vazias. Confira se os dados estão na primeira aba e se o arquivo não está vazio.';
-      else if(err && err.message==='ARQUIVO_VAZIO') detalhe='O arquivo veio vazio. Salve de novo e tente.';
-      else detalhe='Erro: '+(err && err.message ? err.message : err)+'. Confira se é .xlsx, .xls, .xlsm ou .csv com CÓDIGO e DESCRIÇÃO.';
-      msg.textContent='❌ Não consegui importar. Veja o detalhe abaixo.'; msg.style.color='#d92d20';
-      mostrarBoxImport('❌ <b>Não consegui importar "'+file.name+'".</b><br>'+detalhe+'<br><br>Teste rápido: clique em <b>Baixar modelo certinho</b> e tente importar ele. Se o modelo importar, o problema é o formato do seu arquivo — compare os dois.', '#d92d20');
-    }
-    input.value='';
-  };
-  if(nome.endsWith('.csv') || nome.endsWith('.txt')) reader.readAsText(file,'UTF-8');
-  else reader.readAsArrayBuffer(file);
+  const msg=document.getElementById('msgCad'); const nome=file.name.toLowerCase(); const reader=new FileReader();
+  reader.onload=function(e){ try{
+    let linhas=[];
+    if(nome.endsWith('.csv')){ linhas=String(e.target.result).split(/\r?\n/).map(l=>l.split(';').length>1?l.split(';'):l.split(',')); }
+    else{ const wb=XLSX.read(e.target.result,{type:'array'}); const ws=wb.Sheets[wb.SheetNames[0]]; linhas=XLSX.utils.sheet_to_json(ws,{header:1,defval:''}); }
+    let inicio=0; if(linhas.length && String(linhas[0][0]||'').toUpperCase().includes('CÓD')) inicio=1;
+    let novos=0,duplicados=0,vazios=0;
+    for(let i=inicio;i<linhas.length;i++){ const codigo=norm(String(linhas[i][0]||'')); const descricao=norm(String(linhas[i][1]||''));
+      if(!codigo||!descricao){ vazios++; continue; } if(produtos.some(p=>p.codigo===codigo)){ duplicados++; continue; }
+      produtos.push({codigo,descricao}); novos++; }
+    persistirCad(); renderCad(); syncEtq();
+    msg.textContent='✅ Importação de "'+file.name+'" concluída: '+novos+' novo(s), '+duplicados+' já existia(m) e foram ignorados, '+vazios+' linha(s) vazia(s)/incompleta(s) ignoradas.'; msg.style.color='#1a9a4b';
+  }catch(err){ msg.textContent='❌ Não consegui ler esse arquivo. Confira se é .xlsx, .xls ou .csv com CÓDIGO na coluna A e DESCRIÇÃO na coluna B.'; msg.style.color='#d92d20'; } input.value=''; };
+  if(nome.endsWith('.csv')) reader.readAsText(file,'UTF-8'); else reader.readAsArrayBuffer(file);
 }
 function exportarCSV(){
   let csv='CÓDIGO;DESCRIÇÃO\n'+produtos.map(p=>p.codigo+';'+p.descricao).join('\n');
@@ -506,43 +350,27 @@ function syncEtq(){
   }catch(e){ console.error('syncEtq:', e); }
 }
 function imprimirEtiqueta(){
-  const obs=$('observacao')?$('observacao').value:'';
-  if(reimprimindoHistoricoIdx!==null){
-    syncEtq(); mostrar('etiqueta'); syncEtq();
-    limparAposImprimir=true; reimprimindoHistoricoIdx=null; esconderBannerEdit();
-    setTimeout(()=>window.print(), 100);
-    return;
-  }
-  if(editandoHistoricoIdx!==null){
-    const idx=editandoHistoricoIdx; const h=historico[idx];
-    const numero=$('numero_etiqueta')?$('numero_etiqueta').value:(h?h.numero:'');
-    const detalhe='Nº '+numero+' | CÓDIGO DO PRODUTO '+$('codigo').value+' | CÓDIGO '+$('peca').value+' | '+$('denominacao').value+' | NF '+$('nf').value+' | QTD '+$('qtd').value+' | FORNECEDOR '+$('fornecedor').value+' | RESERVA '+$('reserva').value+' | DATA '+fmt($('data').value)+' | VISTO '+$('visto').value;
-    if(h){ historico[idx]={...h, detalhe, observacao:obs.trim().toUpperCase(), numero, codigoProduto:$('codigo').value, peca:$('peca').value, denominacao:$('denominacao').value, fornecedor:$('fornecedor').value, reserva:$('reserva').value, nf:$('nf').value, qtd:$('qtd').value, nc:$('nc').value, data:$('data').value, visto:$('visto').value, editadoEm:new Date().toLocaleString('pt-BR')}; persistirHistorico(); }
-    editandoHistoricoIdx=null; esconderBannerEdit();
-    syncEtq(); mostrar('etiqueta'); syncEtq(); limparAposImprimir=true; setTimeout(()=>window.print(), 100);
-    return;
-  }
-  const numero=gerarNovoNumero(); if(!numero) return; syncEtq();
+  const obs=$('observacao')?$('observacao').value:''; const numero=gerarNovoNumero(); if(!numero) return; syncEtq();
   registrarImpressao('Nº '+numero+' | CÓDIGO DO PRODUTO '+$('codigo').value+' | CÓDIGO '+$('peca').value+' | '+$('denominacao').value+' | NF '+$('nf').value+' | QTD '+$('qtd').value+' | FORNECEDOR '+$('fornecedor').value+' | RESERVA '+$('reserva').value+' | DATA '+$('v_data').textContent+' | VISTO '+$('visto').value, obs, numero);
-  mostrar('etiqueta'); syncEtq(); limparAposImprimir=true; setTimeout(()=>window.print(), 100);
+  mostrar('etiqueta'); syncEtq(); setTimeout(()=>window.print(), 100);
 }
 window.addEventListener('beforeprint', ()=>{ try{ syncEtq(); }catch(e){} mostrar('etiqueta'); });
-window.addEventListener('afterprint', ()=>{
-  // Depois que a janela de impressão fecha, limpa TODOS os campos de preenchimento
-  if(limparAposImprimir){
-    limparAposImprimir=false;
-    setTimeout(()=>{ limparEtq(); }, 150);
-  }
-  if(telaAtual && telaAtual!=='etiqueta') mostrar(telaAtual);
-});
+window.addEventListener('afterprint', ()=>{ if(telaAtual && telaAtual!=='etiqueta') mostrar(telaAtual); });
 function exemploEtq(){ if($('numero_etiqueta')) $('numero_etiqueta').value=gerarNumeroUnico(); if($('observacao')) $('observacao').value='AGUARDANDO ANÁLISE DA QUALIDADE'; $('codigo').value='46B4200HS001'; $('peca').value='AUT110290654491'; delete $('denominacao').dataset.manual; $('fornecedor').value=''; $('reserva').value='12345678'; $('nf').value='3080-1'; $('qtd').value='6'; $('nc').value='FORA DO PADRÃO (FOLGADO) (FORN.)'; $('data').value='2025-04-02'; $('visto').value='IVANI'; syncEtq(); }
-function limparEtq(){
-  editandoHistoricoIdx=null; reimprimindoHistoricoIdx=null; esconderBannerEdit();
-  ['codigo','peca','denominacao','fornecedor','reserva','nf','qtd','nc','data','visto','observacao'].forEach(id=>{ if($(id)) $(id).value=''; });
-  delete $('denominacao').dataset.manual;
-  if($('numero_etiqueta')) $('numero_etiqueta').value=gerarNumeroUnico();
-  syncEtq();
-  if($('codigo')) $('codigo').focus();
+function limparEtq(){ ['codigo','peca','denominacao','fornecedor','reserva','nf','qtd','nc','data','visto','observacao'].forEach(id=>{ if($(id)) $(id).value=''; }); if($('numero_etiqueta')) $('numero_etiqueta').value=gerarNumeroUnico(); delete $('denominacao').dataset.manual; syncEtq(); }
+$('denominacao').addEventListener('input',()=>{ $('denominacao').dataset.manual='1'; syncEtq(); });
+['codigo','peca','fornecedor','reserva','nf','qtd','nc','data','visto'].forEach(id=>$(id).addEventListener('input',()=>{ if(id==='peca') delete $('denominacao').dataset.manual; syncEtq(); }));
+$('cad_codigo').addEventListener('keydown',e=>{ if(e.key==='Enter') $('cad_descricao').focus(); });
+$('cad_descricao').addEventListener('keydown',e=>{ if(e.key==='Enter') salvarCad(); });
+const orig=[]; document.querySelectorAll('#etq .fld').forEach(el=>{ orig.push({el,top:parseFloat(el.style.top)||0,left:parseFloat(el.style.left)||0}); });
+function aplicarAjuste(){
+  const W=parseFloat($('ctl_w').value)||96, H=parseFloat($('ctl_h').value)||88, bcH=parseFloat($('ctl_bc').value)||12, font=parseFloat($('ctl_font').value)||12;
+  $('bc_val').textContent=bcH+' mm'; $('font_val').textContent=font+' px';
+  const etq=$('etq'); etq.style.width=W+'mm'; etq.style.height=H+'mm';
+  const sx=W/96, sy=H/88;
+  orig.forEach(o=>{ o.el.style.top=(o.top*sy)+'mm'; o.el.style.left=(o.left*sx)+'mm'; });
+  document.querySelectorAll('#etq .fld').forEach(v=>v.style.fontSize=font+'px');
+  document.querySelectorAll('#etq .bc-box').forEach(b=>{ b.style.width=bcH+'mm'; b.style.height=bcH+'mm'; });
 }
 ['ctl_w','ctl_h','ctl_bc','ctl_font'].forEach(id=>$(id).addEventListener('input',aplicarAjuste));
 /* ---------- SINCRONIZAÇÃO FIREBASE ---------- */
@@ -576,16 +404,14 @@ if(firebaseOK && db){
   });
 
   db.ref('cadastro_nc/contador_etiqueta').on('value', snap => { const v=snap.val(); if(typeof v==='number' && v>9999){ const local=parseInt(localStorage.getItem(KEY_NUM)||'9999',10); if(v>local) localStorage.setItem(KEY_NUM, String(v)); } });
-  db.ref('cadastro_nc/historico_meta').on('value', snap => { const meta=snap.val(); if(meta && meta.limpoEm && meta.limpoEm > historicoLimpoEm){ historicoLimpoEm=meta.limpoEm; localStorage.setItem(KEY_HIST_LIMPO, String(historicoLimpoEm)); historico=[]; localStorage.setItem(KEY_HIST, JSON.stringify(historico)); renderHist(); } });
   db.ref('cadastro_nc/historico_impressao').on('value', snap => {
-    if(ignorarEcoHistorico) return;
     const dados = snap.val();
-    if(dados === null || dados === undefined){ if(historico.length!==0){ historico=[]; localStorage.setItem(KEY_HIST, JSON.stringify(historico)); renderHist(); } return; }
-    if(Array.isArray(dados)){
+    if(dados && Array.isArray(dados)){
+      // evita loop
       if(JSON.stringify(dados) !== JSON.stringify(historico)){
-        if(historicoLimpoEm && historico.length===0){ db.ref('cadastro_nc/historico_impressao').remove().catch(()=>{}); return; }
         historico = dados.filter(h => !h.acao || h.acao==='IMPRESSÃO');
-        localStorage.setItem(KEY_HIST, JSON.stringify(historico)); renderHist();
+        localStorage.setItem(KEY_HIST, JSON.stringify(historico));
+        renderHist();
       }
     }
   }, err => { console.error('Firebase histórico:', err); setStatusFirebase('🔴 Hist: '+err.code, '#ff8a80'); });
@@ -596,13 +422,10 @@ if(firebaseOK && db){
 }
 
 // persistirLocal já definido acima
-try{ renderCad(); }catch(e){ console.error(e); }
-try{ aplicarAjuste(); }catch(e){ console.error(e); }
-try{ syncEtq(); }catch(e){ console.error(e); }
-window.addEventListener('storage', (e)=>{
-  if(e.key===KEY_HIST_LIMPO){ const v=parseInt(e.newValue||'0',10)||0; if(v>historicoLimpoEm){ historicoLimpoEm=v; historico=[]; localStorage.setItem(KEY_HIST, JSON.stringify([])); try{ renderHist(); }catch(_){} } }
-  if(e.key===KEY_HIST && e.newValue!==null){ try{ const v=safeParse(e.newValue, []); if(Array.isArray(v) && JSON.stringify(v)!==JSON.stringify(historico)){ historico=v; renderHist(); } }catch(_){} }
-});
+try{ renderCad(); }catch(e){ console.error('renderCad:', e); }
+try{ aplicarAjuste(); }catch(e){ console.error('aplicarAjuste:', e); }
+try{ syncEtq(); }catch(e){ console.error('syncEtq init:', e); }
+// Liga os botões do menu de novo por JS - garante que clicam mesmo se o onclick inline falhar
 [['abaCad','cadastro'],['abaEtq','etiqueta'],['abaHist','historico']].forEach(([id,t])=>{ const b=document.getElementById(id); if(b) b.addEventListener('click', ()=>mostrar(t)); });
 if($('numero_etiqueta') && !$('numero_etiqueta').value){ const prox=parseInt(localStorage.getItem(KEY_NUM)||'9999',10)+1; $('numero_etiqueta').value=String(prox>99999?10000:prox).padStart(5,'0'); } syncEtq();
 mostrar('cadastro');
