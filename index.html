@@ -212,7 +212,7 @@ function salvarTudoAutomatico(){
   _pendenteAuto=false;
   setStatusFirebase('⏳ Salvando automaticamente...', '#ffc107');
   return Promise.all([
-    salvarFirebase('cadastro_nc/produtos', produtos),
+    salvarFirebase('cadastro_nc/produtos', produtosParaNuvem()),
     salvarFirebase('cadastro_nc/historico_impressao', historico),
     salvarFirebase('cadastro_nc/contador_etiqueta', parseInt(localStorage.getItem(KEY_NUM)||'9999',10))
   ]).then(()=>{ setStatusFirebase('🟢 Salvo automaticamente no Firebase', '#7CFC9A'); }).catch(()=>{ _pendenteAuto=true; });
@@ -261,7 +261,6 @@ function parseDataHoraHist(s){ try{ const m=String(s||'').match(/(\d{2})\/(\d{2}
 function aplicarLimpezaHistorico(limpoEm){
   limpoEm=Number(limpoEm)||0; if(!limpoEm || limpoEm<=histLimpoEm) return;
   histLimpoEm=limpoEm; try{ localStorage.setItem(KEY_HIST_LIMPO_EM, String(limpoEm)); }catch(e){}
-  // Apaga em TODOS os computadores: só sobrevive o que foi impresso DEPOIS da limpeza (ex.: outro PC estava offline e imprimiu depois)
   const antes=historico.length;
   historico=historico.filter(h=>parseDataHoraHist(h.dataHora)>limpoEm);
   if(historico.length!==antes){ localStorage.setItem(KEY_HIST, JSON.stringify(historico)); renderHist(); }
@@ -299,7 +298,7 @@ function renderHist(){
   document.getElementById('listaHist').innerHTML = f.map(h=>`<tr><td>${h.numero ? `<span class="num-badge">${h.numero}</span>` : `<span style="color:#999">—</span>`}</td><td>${h.dataHora}</td><td>${h.detalhe}</td><td>${h.observacao ? `<span class="obs-badge">${h.observacao}</span>` : `<span style="color:#999">—</span>`}</td><td><div class="acao"><button class="ghost" onclick="editarHist(${h.idx})">✏️ EDITAR</button><button class="green" onclick="reimprimirHist(${h.idx})">🖨️ REIMPRIMIR</button><button class="red" onclick="excluirHist(${h.idx})">🗑 EXCLUIR</button></div></td></tr>`).join('');
 }
 function parseDetalheHist(detalhe){
-  const c={codigo:'',peca:'',denominacao:'',fornecedor:'',reserva:'',nf:'',qtd:'',nc:'',data:'',visto:''};
+  const c={codigo:'',peca:'',denominacao:'',fornecedor:'',reserva:'',nf:'',qtd:'',nc:'',data:'',[STRIPPED]
   (detalhe||'').split(' | ').forEach((parte,i)=>{
     if(i===0) return;
     if(parte.startsWith('CÓDIGO DO PRODUTO ')) c.codigo=parte.replace('CÓDIGO DO PRODUTO ','');
@@ -358,8 +357,55 @@ function limparHist(){
 const KEY='elgin_cadastro_produtos_v1';
 let produtos = safeParse(localStorage.getItem(KEY), []); if(!Array.isArray(produtos)) produtos=[];
 let editando = null;
-if(produtos.length===0){ produtos=[{codigo:'AUT110290654491',descricao:'BIELA PLASTICO PRETO L42PRO'}]; persistirCad(); }
-function persistirCad(){ localStorage.setItem(KEY, JSON.stringify(produtos)); salvarFirebase('cadastro_nc/produtos', produtos); agendarAutoSave(); }
+const KEY_PROD_META='elgin_produtos_meta_v1', KEY_PROD_BACKUP='elgin_produtos_backup_v1';
+let prodMeta=parseInt(localStorage.getItem(KEY_PROD_META)||'0',10)||0;
+let prodSincronizado=false, prodPendenteUpload=false;
+if(produtos.length===0){ try{ const bk=safeParse(localStorage.getItem(KEY_PROD_BACKUP), []); if(Array.isArray(bk)&&bk.length>0) produtos=bk; }catch(e){} }
+if(produtos.length>0){ try{ localStorage.setItem(KEY_PROD_BACKUP, JSON.stringify(produtos)); }catch(e){} }
+// NÃO cria item padrão nem envia nada antes da 1ª leitura da nuvem — era isso que apagava os códigos
+if(produtos.length===0){ produtos=[{codigo:'AUT110290654491',descricao:'BIELA PLASTICO PRETO L42PRO'}]; }
+function produtosParaNuvem(){ return {itens:produtos, atualizadoEm:prodMeta}; }
+function persistirCad(){
+  prodMeta=Date.now();
+  try{ localStorage.setItem(KEY_PROD_META, String(prodMeta)); }catch(e){}
+  try{ if(produtos.length>0) localStorage.setItem(KEY_PROD_BACKUP, JSON.stringify(produtos)); }catch(e){}
+  localStorage.setItem(KEY, JSON.stringify(produtos));
+  if(!prodSincronizado){ prodPendenteUpload=true; return; } // espera a 1ª leitura da nuvem
+  salvarFirebase('cadastro_nc/produtos', produtosParaNuvem());
+  agendarAutoSave();
+}
+function resolverProdutosNuvem(remoto){
+  // remoto pode ser: null | array legado | {itens, atualizadoEm}
+  prodSincronizado=true;
+  let remItens=null, remMeta=0;
+  if(Array.isArray(remoto)){ remItens=remoto; remMeta=0; }
+  else if(remoto && Array.isArray(remoto.itens)){ remItens=remoto.itens; remMeta=Number(remoto.atualizadoEm)||0; }
+  if(remItens===null){
+    if(produtos.length>0 || prodPendenteUpload){ salvarFirebase('cadastro_nc/produtos', produtosParaNuvem()); }
+    else if(prodMeta===0){ prodMeta=Date.now(); try{ localStorage.setItem(KEY_PROD_META, String(prodMeta)); }catch(e){} salvarFirebase('cadastro_nc/produtos', produtosParaNuvem()); }
+    prodPendenteUpload=false; return;
+  }
+  if(remMeta===0 && remItens && produtos.length>remItens.length){
+    // Recuperação: nuvem legada/curta (ex.: já foi sobrescrita pelo bug) e este PC tem mais códigos -> envia a lista maior, não adota a curta
+    salvarFirebase('cadastro_nc/produtos', produtosParaNuvem());
+    ultimoEnviado['cadastro_nc/produtos']=JSON.stringify(produtosParaNuvem());
+    prodPendenteUpload=false; return;
+  }
+  if(remMeta>prodMeta){
+    // nuvem é mais nova (outro PC cadastrou/excluiu depois) -> adota a nuvem
+    produtos=remItens; prodMeta=remMeta;
+    try{ localStorage.setItem(KEY_PROD_META, String(prodMeta)); }catch(e){}
+    try{ if(produtos.length>0) localStorage.setItem(KEY_PROD_BACKUP, JSON.stringify(produtos)); }catch(e){}
+    persistirLocal(); editando=null; renderCad(); syncEtq();
+  } else if(prodMeta>remMeta || prodPendenteUpload){
+    // este PC é mais novo (cadastrou offline) ou tem alteração pendente -> envia a lista deste PC, nunca apaga a nuvem à toa
+    salvarFirebase('cadastro_nc/produtos', produtosParaNuvem());
+  } else if(JSON.stringify(remItens)!==JSON.stringify(produtos)){
+    produtos=remItens; persistirLocal(); renderCad(); syncEtq();
+  }
+  ultimoEnviado['cadastro_nc/produtos']=JSON.stringify(produtosParaNuvem());
+  prodPendenteUpload=false;
+}
 function norm(s){ return (s||'').trim().toUpperCase(); }
 function buscarDescricao(codigo){ const p = produtos.find(x=>x.codigo===norm(codigo)); return p? p.descricao : ''; }
 function salvarCad(){
@@ -493,19 +539,7 @@ if(firebaseOK && db){
   });
 
   db.ref('cadastro_nc/produtos').on('value', snap => {
-    const dados = snap.val();
-    if(dados && Array.isArray(dados)){
-      if(JSON.stringify(dados) !== JSON.stringify(produtos)){
-        ultimoEnviado['cadastro_nc/produtos']=JSON.stringify(dados);
-        produtos = dados;
-        persistirLocal();
-        editando = null;
-        renderCad(); syncEtq();
-      }
-    } else if(dados === null){
-      // primeira vez, envia local para nuvem
-      if(produtos.length>0) salvarFirebase('cadastro_nc/produtos', produtos);
-    }
+    resolverProdutosNuvem(snap.val());
     setStatusFirebase('🟢 Firebase conectado — sincronizando', '#7CFC9A');
   }, err => {
     console.error('Firebase produtos erro:', err);
@@ -518,7 +552,6 @@ if(firebaseOK && db){
   db.ref('cadastro_nc/historico_impressao').on('value', snap => {
     const dados = snap.val();
     if(dados === null){
-      // Firebase vazio = histórico foi limpo (em algum computador). NÃO restaura o local antigo.
       aplicarLimpezaHistorico(histLimpoEm || Date.now());
       if(historico.length){ historico=[]; localStorage.setItem(KEY_HIST, JSON.stringify(historico)); renderHist(); }
       ultimoEnviado['cadastro_nc/historico_impressao']=JSON.stringify(historico);
@@ -532,7 +565,6 @@ if(firebaseOK && db){
       ultimoEnviado['cadastro_nc/historico_impressao']=JSON.stringify(filtrados);
     }
   }, err => { console.error('Firebase histórico:', err); setStatusFirebase('🔴 Hist: '+err.code, '#ff8a80'); });
-  // Comando de limpeza: quando outro computador limpa, este limpa também — mesmo que estivesse offline na hora
   db.ref('cadastro_nc/historico_limpo_em').on('value', snap => { const v=Number(snap.val())||0; if(v) aplicarLimpezaHistorico(v); });
 
 } else {
