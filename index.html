@@ -12,10 +12,12 @@ main{max-width:1250px;margin:auto;padding:18px}
 .card{background:#fff;border-radius:12px;box-shadow:0 4px 18px rgba(0,0,0,.08);padding:18px}
 h2{margin:0 0 14px;font-size:18px}
 label{font-size:13px;font-weight:800;color:#333;display:block}
-input,select,textarea{width:100%;border:1px solid #cbd5df;border-radius:8px;padding:12px 10px;font-size:15px;outline:none;margin-top:4px;font-family:inherit}
-textarea{resize:vertical;min-height:64px;text-transform:uppercase}
+textarea{width:100%;border:1px solid #cbd5df;border-radius:8px;padding:12px 10px;font-size:15px;outline:none;margin-top:4px;font-family:inherit;resize:vertical;min-height:64px;text-transform:uppercase}
 textarea:focus{border-color:#0b4f8a;background:#fff8d6}
 .obs-badge{background:#fff3cd;border:1px solid #ffe69c;border-radius:6px;padding:4px 8px;font-size:13px;color:#664d03;display:inline-block;max-width:100%;white-space:normal}
+.num-badge{background:#0b4f8a;color:#fff;border-radius:6px;padding:4px 10px;font-size:15px;font-weight:900;letter-spacing:2px;display:inline-block}
+.num-input{font-size:18px!important;font-weight:900!important;letter-spacing:3px;text-align:center;background:#eef6ff!important;color:#0b4f8a!important}
+input,select{width:100%;border:1px solid #cbd5df;border-radius:8px;padding:12px 10px;font-size:15px;outline:none;margin-top:4px}
 input:focus{border-color:#0b4f8a;background:#fff8d6}
 input.mono{text-transform:uppercase}
 button{border:0;border-radius:999px;padding:12px 18px;font-weight:800;cursor:pointer}
@@ -92,6 +94,7 @@ tr:hover td{background:#f7f9fb}
 <div class="card etq-form">
 <h2>📋 Preencher informações — Coluna B</h2>
 <table><tr><th>CAMPO</th><th>PREENCHER</th></tr>
+<tr><td>Nº ETIQUETA:<br><span style="font-weight:400;font-size:11px;color:#666">Único, 5 dígitos</span></td><td><div style="display:flex;gap:8px;align-items:center"><input id="numero_etiqueta" class="mono num-input" readonly value="" placeholder="-----" style="flex:1"><button type="button" class="ghost" onclick="gerarNovoNumero()" style="white-space:nowrap">↻ Novo</button></div></td></tr>
 <tr><td>CÓDIGO DO PRODUTO:</td><td><input id="codigo" class="mono" value="46B4200HS001"></td></tr>
 <tr><td>CÓDIGO PEÇA:</td><td><input id="peca" class="mono" value="AUT110290654491"></td></tr>
 <tr><td>DENOMINAÇÃO:</td><td><input id="denominacao" class="mono" placeholder="Puxa sozinha do cadastro..."></td></tr>
@@ -102,10 +105,10 @@ tr:hover td{background:#f7f9fb}
 <tr><td>NÃO CONFORME:</td><td><input id="nc" class="mono" value="FORA DO PADRÃO (FOLGADO) (FORN.)"></td></tr>
 <tr><td>DATA:</td><td><input id="data" type="date" value="2025-04-02"></td></tr>
 <tr><td>VISTO:</td><td><input id="visto" class="mono" value="IVANI"></td></tr>
-<tr><td>OBSERVAÇÃO: <br><span style="font-weight:400;font-size:11px;color:#666">Só aparece no histórico,<br>não sai na etiqueta</span></td><td><textarea id="observacao" class="mono" rows="3" maxlength="500" placeholder="Ex: MATERIAL AGUARDANDO ANÁLISE DA QUALIDADE..."></textarea></td></tr>
+<tr><td>OBSERVAÇÃO: <br><span style="font-weight:400;font-size:11px;color:#666">Só no histórico,<br>não sai na etiqueta</span></td><td><textarea id="observacao" class="mono" rows="3" maxlength="500" placeholder="Ex: MATERIAL AGUARDANDO ANÁLISE..."></textarea></td></tr>
 </table>
 <div class="btns"><button class="primary" onclick="imprimirEtiqueta()">🖨️ IMPRIMIR ETIQUETA</button><button class="green" onclick="exemploEtq()">Preencher exemplo</button><button class="ghost" onclick="limparEtq()">Limpar</button></div>
-<p class="hint">📝 <b>OBSERVAÇÃO não sai na etiqueta</b> — fica salva só no Histórico de Impressão.<br>💡 Digite o CÓDIGO PEÇA e a DENOMINAÇÃO puxa sozinha do cadastro. Se o código não existir, digite a descrição na mão.</p>
+<p class="hint">💡 Digite o CÓDIGO PEÇA e a DENOMINAÇÃO puxa sozinha do cadastro. Se o código não existir, digite a descrição na mão.</p>
 </div>
 <div class="card"><h2 class="no-print">🏷️ Prévia da etiqueta</h2>
 <div class="no-print" style="background:#f0f4f8;border-radius:10px;padding:12px;margin-bottom:12px"><h3 style="margin:0 0 10px;font-size:14px">📐 Ajustar etiqueta</h3>
@@ -127,6 +130,7 @@ tr:hover td{background:#f7f9fb}
 <div class="fld" style="left:2.08mm;top:57mm;width:93mm;height:6mm;font-size:12px"><b>NÃO CONFORME:</b><span class="val" id="v_nc"></span></div>
 <div class="fld" style="left:2.35mm;top:64mm;width:30mm;height:6mm;font-size:12px"><b>DATA:</b><span class="val" id="v_data"></span></div>
 <div class="fld" style="left:34.57mm;top:64mm;width:55mm;height:6mm;font-size:12px"><b>VISTO:</b><span class="val" id="v_visto"></span></div>
+<div class="fld" style="left:2.35mm;top:83.5mm;width:93mm;height:4.5mm;font-size:11px;justify-content:center"><b>Nº ETIQUETA:</b><span class="val" id="v_numero" style="flex:none;font-size:13px;letter-spacing:1.5px">-----</span></div>
 <div class="fld bc-field" style="left:2.61mm;top:70mm;width:93mm;height:13mm;font-size:12px"><div class="left"><b>NÚMERO DA RESERVA:</b><span class="val" id="v_reserva"></span></div><span class="bc-box" id="bc_reserva"></span></div>
 </div>
 <p class="hint no-print" style="text-align:center">96 × 88 mm • QR Code em CÓDIGO DO PRODUTO, CÓDIGO e NÚMERO DA RESERVA</p>
@@ -143,7 +147,7 @@ tr:hover td{background:#f7f9fb}
 <button class="ghost" onclick="exportarHistCSV()">⬇ Exportar histórico (CSV)</button>
 <button class="red" onclick="limparHist()">🗑 Limpar histórico</button>
 </div>
-<table><thead><tr><th style="width:170px">DATA / HORA</th><th>ETIQUETA IMPRESSA</th><th style="width:28%">OBSERVAÇÃO</th></tr></thead><tbody id="listaHist"></tbody></table>
+<table><thead><tr><th style="width:90px">Nº ETIQUETA</th><th style="width:170px">DATA / HORA</th><th>ETIQUETA IMPRESSA</th><th style="width:28%">OBSERVAÇÃO</th></tr></thead><tbody id="listaHist"></tbody></table>
 <div class="empty" id="vazioHist" style="display:none">Nenhuma impressão registrada ainda.</div>
 <p class="hint">Somente impressões ficam registradas aqui. Cadastro, edição, exclusão, importação e exportação NÃO aparecem no histórico.</p>
 </div>
@@ -154,6 +158,9 @@ tr:hover td{background:#f7f9fb}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
+const $=id=>document.getElementById(id);
+let telaAtual='cadastro';
+function safeParse(txt, fallback){ try{ return JSON.parse(txt||''); }catch(e){ console.warn('localStorage corrompido, usando vazio:', e); return fallback; } }
 /* ---------- FIREBASE ---------- */
 const FIREBASE_URL = 'https://cadastro-de-nc-default-rtdb.firebaseio.com/';
 // PREENCHA com a config do seu projeto (Console > Configurações do projeto > Geral > Seus apps)
@@ -203,45 +210,58 @@ try{
   setStatusFirebase('🔴 Firebase não iniciou: '+e.message+' (usando local)', '#ff8a80');
 }
 function mostrar(tela){
-  document.getElementById('tela-cadastro').style.display = tela==='cadastro'?'block':'none';
-  document.getElementById('tela-etiqueta').style.display = tela==='etiqueta'?'block':'none';
-  document.getElementById('tela-historico').style.display = tela==='historico'?'block':'none';
-  document.getElementById('abaCad').classList.toggle('ativo', tela==='cadastro');
-  document.getElementById('abaEtq').classList.toggle('ativo', tela==='etiqueta');
-  document.getElementById('abaHist').classList.toggle('ativo', tela==='historico');
-  if(tela==='etiqueta') syncEtq();
-  if(tela==='historico') renderHist();
+  try{
+    telaAtual = tela;
+    const telas = {'cadastro':'tela-cadastro','etiqueta':'tela-etiqueta','historico':'tela-historico'};
+    Object.keys(telas).forEach(k=>{ const el=document.getElementById(telas[k]); if(el) el.style.display = (k===tela?'block':'none'); });
+    [['abaCad','cadastro'],['abaEtq','etiqueta'],['abaHist','historico']].forEach(([id,t])=>{ const b=document.getElementById(id); if(b) b.classList.toggle('ativo', t===tela); });
+    if(tela==='etiqueta'){ try{ syncEtq(); }catch(e){ console.error('syncEtq falhou, mas a página abriu:', e); } }
+    if(tela==='historico'){ try{ renderHist(); }catch(e){ console.error('renderHist falhou, mas a página abriu:', e); } }
+    window.scrollTo(0,0);
+  }catch(e){ console.error('mostrar falhou:', e); alert('Erro ao trocar de página: '+e.message+'\nAperte F12 > Console e me mande o erro.'); }
 }
+window.mostrar = mostrar;
 /* ---------- HISTÓRICO — SOMENTE IMPRESSÃO ---------- */
 const KEY_HIST='elgin_historico_impressao_v1';
-let historico = JSON.parse(localStorage.getItem(KEY_HIST)||'[]');
+let historico = safeParse(localStorage.getItem(KEY_HIST), []); if(!Array.isArray(historico)) historico=[];
 // Se vier registro antigo de outro tipo, mantém só impressão
 historico = historico.filter(h => !h.acao || h.acao==='IMPRESSÃO');
 localStorage.setItem(KEY_HIST, JSON.stringify(historico));
-function registrarImpressao(detalhe, observacao){
+const KEY_NUM='elgin_contador_etiqueta_v1';
+function numerosUsados(){ const s=new Set(); (historico||[]).forEach(h=>{ if(h.numero) s.add(String(h.numero)); }); return s; }
+function gerarNumeroUnico(){
+  let contador=parseInt(localStorage.getItem(KEY_NUM)||'9999',10); if(isNaN(contador)||contador<9999) contador=9999;
+  const usados=numerosUsados(); let tent=0, novo='';
+  do{ contador++; if(contador>99999) contador=10000; novo=String(contador).padStart(5,'0'); tent++; if(tent>90000){ novo=''; break; } }while(usados.has(novo));
+  if(!novo){ alert('Todos os números já foram usados!'); return ''; }
+  localStorage.setItem(KEY_NUM, String(contador));
+  if(typeof salvarFirebase==='function') salvarFirebase('cadastro_nc/contador_etiqueta', contador);
+  return novo;
+}
+function gerarNovoNumero(){ const n=gerarNumeroUnico(); if(n && $('numero_etiqueta')) $('numero_etiqueta').value=n; syncEtq(); return n; }
+function registrarImpressao(detalhe, observacao, numero){
   const agora = new Date();
   const dataHora = agora.toLocaleDateString('pt-BR')+' '+agora.toLocaleTimeString('pt-BR');
-  const obs = (observacao||'').trim().toUpperCase();
-  historico.unshift({dataHora, acao:'IMPRESSÃO', detalhe, observacao: obs});
+  const obs=(observacao||'').trim().toUpperCase(); const num=(numero||($('numero_etiqueta')?$('numero_etiqueta').value:'')||'').trim(); historico.unshift({dataHora, acao:'IMPRESSÃO', detalhe, observacao:obs, numero:num});
   if(historico.length>2000) historico = historico.slice(0,2000);
   localStorage.setItem(KEY_HIST, JSON.stringify(historico));
   salvarFirebase('cadastro_nc/historico_impressao', historico);
 }
 function renderHist(){
   const busca = (document.getElementById('buscaHist').value||'').trim().toUpperCase();
-  const f = historico.filter(h => !busca || (h.dataHora+' '+h.detalhe+' '+(h.observacao||'')).toUpperCase().includes(busca));
+  const f = historico.filter(h => !busca || (h.dataHora+' '+h.detalhe+' '+(h.observacao||'')+' '+(h.numero||'')).toUpperCase().includes(busca));
   document.getElementById('countHist').textContent = f.length+' impressão(ões) • Total: '+historico.length;
   document.getElementById('vazioHist').style.display = f.length?'none':'block';
-  document.getElementById('listaHist').innerHTML = f.map(h=>`<tr><td>${h.dataHora}</td><td>${h.detalhe}</td><td>${h.observacao ? `<span class=\"obs-badge\">${h.observacao}</span>` : `<span style=\"color:#999\">—</span>`}</td></tr>`).join('');
+    document.getElementById('listaHist').innerHTML = f.map(h=>`<tr><td>${h.numero ? `<span class="num-badge">${h.numero}</span>` : `<span style="color:#999">—</span>`}</td><td>${h.dataHora}</td><td>${h.detalhe}</td><td>${h.observacao ? `<span class="obs-badge">${h.observacao}</span>` : `<span style="color:#999">—</span>`}</td></tr>`).join('');
 }
 function exportarHistCSV(){
-  let csv='DATA / HORA;ETIQUETA IMPRESSA;OBSERVAÇÃO\n'+historico.map(h=>h.dataHora+';'+h.detalhe.replaceAll(';',',')+';'+(h.observacao||'').replaceAll(';',',')).join('\n');
+  let csv='Nº ETIQUETA;DATA / HORA;ETIQUETA IMPRESSA;OBSERVAÇÃO\n'+historico.map(h=>(h.numero||'')+';'+h.dataHora+';'+h.detalhe.replaceAll(';',',')+';'+(h.observacao||'').replaceAll(';',',')).join('\n');
   const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv'})); a.download='historico_impressao_nc.csv'; a.click();
 }
 function limparHist(){ if(!confirm('Apagar TODO o histórico de impressão?')) return; historico=[]; localStorage.setItem(KEY_HIST, JSON.stringify(historico)); salvarFirebase('cadastro_nc/historico_impressao', historico); renderHist(); }
 /* ---------- CADASTRO ---------- */
 const KEY='elgin_cadastro_produtos_v1';
-let produtos = JSON.parse(localStorage.getItem(KEY)||'[]');
+let produtos = safeParse(localStorage.getItem(KEY), []); if(!Array.isArray(produtos)) produtos=[];
 let editando = null;
 if(produtos.length===0){ produtos=[{codigo:'AUT110290654491',descricao:'BIELA PLASTICO PRETO L42PRO'}]; persistirCad(); }
 function persistirCad(){ localStorage.setItem(KEY, JSON.stringify(produtos)); salvarFirebase('cadastro_nc/produtos', produtos); }
@@ -307,7 +327,6 @@ function exportarCSV(){
 }
 function limparTudo(){ if(!confirm('Apagar TODOS os produtos?')) return; produtos=[]; editando=null; persistirCad(); renderCad(); }
 /* ---------- ETIQUETA ---------- */
-const $=id=>document.getElementById(id);
 function fmt(d){ if(!d) return ''; const p=d.split('-'); return p.length==3? p[2]+'/'+p[1]+'/'+p[0] : d; }
 function qrSVG(val){
   try{
@@ -318,22 +337,27 @@ function qrSVG(val){
 }
 function drawBC(id,val){ const el=$(id); if(!el) return; const v=(val||'').trim(); el.innerHTML=v?qrSVG(v):''; }
 function syncEtq(){
+  try{
+  if(!$('peca')||!$('codigo')) return;
   const desc = buscarDescricao($('peca').value);
   if(desc && !$('denominacao').dataset.manual){ $('denominacao').value=desc; }
   $('v_codigo').textContent=$('codigo').value; $('v_peca').textContent=$('peca').value;
   $('v_denominacao').textContent=$('denominacao').value; $('v_fornecedor').textContent=$('fornecedor').value;
   $('v_reserva').textContent=$('reserva').value; $('v_nf').textContent=$('nf').value; $('v_qtd').textContent=$('qtd').value;
+  if($('v_numero')) $('v_numero').textContent=$('numero_etiqueta')&&$('numero_etiqueta').value?$('numero_etiqueta').value:'-----';
   $('v_nc').textContent=$('nc').value; $('v_data').textContent=fmt($('data').value); $('v_visto').textContent=$('visto').value;
   drawBC('bc_codigo',$('codigo').value); drawBC('bc_peca',$('peca').value); drawBC('bc_reserva',$('reserva').value);
+  }catch(e){ console.error('syncEtq:', e); }
 }
 function imprimirEtiqueta(){
-  const obs = $('observacao') ? $('observacao').value : '';
-  registrarImpressao('CÓDIGO DO PRODUTO '+$('codigo').value+' | CÓDIGO '+$('peca').value+' | '+$('denominacao').value+' | NF '+$('nf').value+' | QTD '+$('qtd').value+' | FORNECEDOR '+$('fornecedor').value+' | RESERVA '+$('reserva').value+' | DATA '+$('v_data').textContent+' | VISTO '+$('visto').value, obs);
+  const obs=$('observacao')?$('observacao').value:''; const numero=gerarNovoNumero(); if(!numero) return; syncEtq();
+  registrarImpressao('Nº '+numero+' | CÓDIGO DO PRODUTO '+$('codigo').value+' | CÓDIGO '+$('peca').value+' | '+$('denominacao').value+' | NF '+$('nf').value+' | QTD '+$('qtd').value+' | FORNECEDOR '+$('fornecedor').value+' | RESERVA '+$('reserva').value+' | DATA '+$('v_data').textContent+' | VISTO '+$('visto').value, obs, numero);
   mostrar('etiqueta'); syncEtq(); setTimeout(()=>window.print(), 100);
 }
-window.addEventListener('beforeprint', ()=>{ mostrar('etiqueta'); syncEtq(); });
-function exemploEtq(){ if($('observacao')) $('observacao').value='AGUARDANDO ANÁLISE DA QUALIDADE'; $('codigo').value='46B4200HS001'; $('peca').value='AUT110290654491'; delete $('denominacao').dataset.manual; $('fornecedor').value=''; $('reserva').value='12345678'; $('nf').value='3080-1'; $('qtd').value='6'; $('nc').value='FORA DO PADRÃO (FOLGADO) (FORN.)'; $('data').value='2025-04-02'; $('visto').value='IVANI'; syncEtq(); }
-function limparEtq(){ ['codigo','peca','denominacao','fornecedor','reserva','nf','qtd','nc','data','visto','observacao'].forEach(id=>{ if($(id)) $(id).value=''; }); delete $('denominacao').dataset.manual; syncEtq(); }
+window.addEventListener('beforeprint', ()=>{ try{ syncEtq(); }catch(e){} mostrar('etiqueta'); });
+window.addEventListener('afterprint', ()=>{ if(telaAtual && telaAtual!=='etiqueta') mostrar(telaAtual); });
+function exemploEtq(){ if($('numero_etiqueta')) $('numero_etiqueta').value=gerarNumeroUnico(); if($('observacao')) $('observacao').value='AGUARDANDO ANÁLISE DA QUALIDADE'; $('codigo').value='46B4200HS001'; $('peca').value='AUT110290654491'; delete $('denominacao').dataset.manual; $('fornecedor').value=''; $('reserva').value='12345678'; $('nf').value='3080-1'; $('qtd').value='6'; $('nc').value='FORA DO PADRÃO (FOLGADO) (FORN.)'; $('data').value='2025-04-02'; $('visto').value='IVANI'; syncEtq(); }
+function limparEtq(){ ['codigo','peca','denominacao','fornecedor','reserva','nf','qtd','nc','data','visto','observacao'].forEach(id=>{ if($(id)) $(id).value=''; }); if($('numero_etiqueta')) $('numero_etiqueta').value=gerarNumeroUnico(); delete $('denominacao').dataset.manual; syncEtq(); }
 $('denominacao').addEventListener('input',()=>{ $('denominacao').dataset.manual='1'; syncEtq(); });
 ['codigo','peca','fornecedor','reserva','nf','qtd','nc','data','visto'].forEach(id=>$(id).addEventListener('input',()=>{ if(id==='peca') delete $('denominacao').dataset.manual; syncEtq(); }));
 $('cad_codigo').addEventListener('keydown',e=>{ if(e.key==='Enter') $('cad_descricao').focus(); });
@@ -379,6 +403,7 @@ if(firebaseOK && db){
     setStatusFirebase('🔴 Firebase produtos: '+detalhe, '#ff8a80');
   });
 
+  db.ref('cadastro_nc/contador_etiqueta').on('value', snap => { const v=snap.val(); if(typeof v==='number' && v>9999){ const local=parseInt(localStorage.getItem(KEY_NUM)||'9999',10); if(v>local) localStorage.setItem(KEY_NUM, String(v)); } });
   db.ref('cadastro_nc/historico_impressao').on('value', snap => {
     const dados = snap.val();
     if(dados && Array.isArray(dados)){
@@ -397,5 +422,11 @@ if(firebaseOK && db){
 }
 
 // persistirLocal já definido acima
-renderCad(); aplicarAjuste(); syncEtq();
+try{ renderCad(); }catch(e){ console.error('renderCad:', e); }
+try{ aplicarAjuste(); }catch(e){ console.error('aplicarAjuste:', e); }
+try{ syncEtq(); }catch(e){ console.error('syncEtq init:', e); }
+// Liga os botões do menu de novo por JS - garante que clicam mesmo se o onclick inline falhar
+[['abaCad','cadastro'],['abaEtq','etiqueta'],['abaHist','historico']].forEach(([id,t])=>{ const b=document.getElementById(id); if(b) b.addEventListener('click', ()=>mostrar(t)); });
+if($('numero_etiqueta') && !$('numero_etiqueta').value){ const prox=parseInt(localStorage.getItem(KEY_NUM)||'9999',10)+1; $('numero_etiqueta').value=String(prox>99999?10000:prox).padStart(5,'0'); } syncEtq();
+mostrar('cadastro');
 </script></body></html>
