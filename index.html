@@ -12,7 +12,10 @@ main{max-width:1250px;margin:auto;padding:18px}
 .card{background:#fff;border-radius:12px;box-shadow:0 4px 18px rgba(0,0,0,.08);padding:18px}
 h2{margin:0 0 14px;font-size:18px}
 label{font-size:13px;font-weight:800;color:#333;display:block}
-input,select{width:100%;border:1px solid #cbd5df;border-radius:8px;padding:12px 10px;font-size:15px;outline:none;margin-top:4px}
+input,select,textarea{width:100%;border:1px solid #cbd5df;border-radius:8px;padding:12px 10px;font-size:15px;outline:none;margin-top:4px;font-family:inherit}
+textarea{resize:vertical;min-height:64px;text-transform:uppercase}
+textarea:focus{border-color:#0b4f8a;background:#fff8d6}
+.obs-badge{background:#fff3cd;border:1px solid #ffe69c;border-radius:6px;padding:4px 8px;font-size:13px;color:#664d03;display:inline-block;max-width:100%;white-space:normal}
 input:focus{border-color:#0b4f8a;background:#fff8d6}
 input.mono{text-transform:uppercase}
 button{border:0;border-radius:999px;padding:12px 18px;font-weight:800;cursor:pointer}
@@ -99,9 +102,10 @@ tr:hover td{background:#f7f9fb}
 <tr><td>NÃO CONFORME:</td><td><input id="nc" class="mono" value="FORA DO PADRÃO (FOLGADO) (FORN.)"></td></tr>
 <tr><td>DATA:</td><td><input id="data" type="date" value="2025-04-02"></td></tr>
 <tr><td>VISTO:</td><td><input id="visto" class="mono" value="IVANI"></td></tr>
+<tr><td>OBSERVAÇÃO: <br><span style="font-weight:400;font-size:11px;color:#666">Só aparece no histórico,<br>não sai na etiqueta</span></td><td><textarea id="observacao" class="mono" rows="3" maxlength="500" placeholder="Ex: MATERIAL AGUARDANDO ANÁLISE DA QUALIDADE..."></textarea></td></tr>
 </table>
 <div class="btns"><button class="primary" onclick="imprimirEtiqueta()">🖨️ IMPRIMIR ETIQUETA</button><button class="green" onclick="exemploEtq()">Preencher exemplo</button><button class="ghost" onclick="limparEtq()">Limpar</button></div>
-<p class="hint">💡 Digite o CÓDIGO PEÇA e a DENOMINAÇÃO puxa sozinha do cadastro. Se o código não existir, digite a descrição na mão.</p>
+<p class="hint">📝 <b>OBSERVAÇÃO não sai na etiqueta</b> — fica salva só no Histórico de Impressão.<br>💡 Digite o CÓDIGO PEÇA e a DENOMINAÇÃO puxa sozinha do cadastro. Se o código não existir, digite a descrição na mão.</p>
 </div>
 <div class="card"><h2 class="no-print">🏷️ Prévia da etiqueta</h2>
 <div class="no-print" style="background:#f0f4f8;border-radius:10px;padding:12px;margin-bottom:12px"><h3 style="margin:0 0 10px;font-size:14px">📐 Ajustar etiqueta</h3>
@@ -139,7 +143,7 @@ tr:hover td{background:#f7f9fb}
 <button class="ghost" onclick="exportarHistCSV()">⬇ Exportar histórico (CSV)</button>
 <button class="red" onclick="limparHist()">🗑 Limpar histórico</button>
 </div>
-<table><thead><tr><th style="width:170px">DATA / HORA</th><th>ETIQUETA IMPRESSA</th></tr></thead><tbody id="listaHist"></tbody></table>
+<table><thead><tr><th style="width:170px">DATA / HORA</th><th>ETIQUETA IMPRESSA</th><th style="width:28%">OBSERVAÇÃO</th></tr></thead><tbody id="listaHist"></tbody></table>
 <div class="empty" id="vazioHist" style="display:none">Nenhuma impressão registrada ainda.</div>
 <p class="hint">Somente impressões ficam registradas aqui. Cadastro, edição, exclusão, importação e exportação NÃO aparecem no histórico.</p>
 </div>
@@ -214,23 +218,24 @@ let historico = JSON.parse(localStorage.getItem(KEY_HIST)||'[]');
 // Se vier registro antigo de outro tipo, mantém só impressão
 historico = historico.filter(h => !h.acao || h.acao==='IMPRESSÃO');
 localStorage.setItem(KEY_HIST, JSON.stringify(historico));
-function registrarImpressao(detalhe){
+function registrarImpressao(detalhe, observacao){
   const agora = new Date();
   const dataHora = agora.toLocaleDateString('pt-BR')+' '+agora.toLocaleTimeString('pt-BR');
-  historico.unshift({dataHora, acao:'IMPRESSÃO', detalhe});
+  const obs = (observacao||'').trim().toUpperCase();
+  historico.unshift({dataHora, acao:'IMPRESSÃO', detalhe, observacao: obs});
   if(historico.length>2000) historico = historico.slice(0,2000);
   localStorage.setItem(KEY_HIST, JSON.stringify(historico));
   salvarFirebase('cadastro_nc/historico_impressao', historico);
 }
 function renderHist(){
   const busca = (document.getElementById('buscaHist').value||'').trim().toUpperCase();
-  const f = historico.filter(h => !busca || (h.dataHora+' '+h.detalhe).toUpperCase().includes(busca));
+  const f = historico.filter(h => !busca || (h.dataHora+' '+h.detalhe+' '+(h.observacao||'')).toUpperCase().includes(busca));
   document.getElementById('countHist').textContent = f.length+' impressão(ões) • Total: '+historico.length;
   document.getElementById('vazioHist').style.display = f.length?'none':'block';
-  document.getElementById('listaHist').innerHTML = f.map(h=>`<tr><td>${h.dataHora}</td><td>${h.detalhe}</td></tr>`).join('');
+  document.getElementById('listaHist').innerHTML = f.map(h=>`<tr><td>${h.dataHora}</td><td>${h.detalhe}</td><td>${h.observacao ? `<span class=\"obs-badge\">${h.observacao}</span>` : `<span style=\"color:#999\">—</span>`}</td></tr>`).join('');
 }
 function exportarHistCSV(){
-  let csv='DATA / HORA;ETIQUETA IMPRESSA\n'+historico.map(h=>h.dataHora+';'+h.detalhe).join('\n');
+  let csv='DATA / HORA;ETIQUETA IMPRESSA;OBSERVAÇÃO\n'+historico.map(h=>h.dataHora+';'+h.detalhe.replaceAll(';',',')+';'+(h.observacao||'').replaceAll(';',',')).join('\n');
   const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv'})); a.download='historico_impressao_nc.csv'; a.click();
 }
 function limparHist(){ if(!confirm('Apagar TODO o histórico de impressão?')) return; historico=[]; localStorage.setItem(KEY_HIST, JSON.stringify(historico)); salvarFirebase('cadastro_nc/historico_impressao', historico); renderHist(); }
@@ -322,12 +327,13 @@ function syncEtq(){
   drawBC('bc_codigo',$('codigo').value); drawBC('bc_peca',$('peca').value); drawBC('bc_reserva',$('reserva').value);
 }
 function imprimirEtiqueta(){
-  registrarImpressao('CÓDIGO DO PRODUTO '+$('codigo').value+' | CÓDIGO '+$('peca').value+' | '+$('denominacao').value+' | NF '+$('nf').value+' | QTD '+$('qtd').value+' | FORNECEDOR '+$('fornecedor').value+' | RESERVA '+$('reserva').value+' | DATA '+$('v_data').textContent+' | VISTO '+$('visto').value);
+  const obs = $('observacao') ? $('observacao').value : '';
+  registrarImpressao('CÓDIGO DO PRODUTO '+$('codigo').value+' | CÓDIGO '+$('peca').value+' | '+$('denominacao').value+' | NF '+$('nf').value+' | QTD '+$('qtd').value+' | FORNECEDOR '+$('fornecedor').value+' | RESERVA '+$('reserva').value+' | DATA '+$('v_data').textContent+' | VISTO '+$('visto').value, obs);
   mostrar('etiqueta'); syncEtq(); setTimeout(()=>window.print(), 100);
 }
 window.addEventListener('beforeprint', ()=>{ mostrar('etiqueta'); syncEtq(); });
-function exemploEtq(){ $('codigo').value='46B4200HS001'; $('peca').value='AUT110290654491'; delete $('denominacao').dataset.manual; $('fornecedor').value=''; $('reserva').value='12345678'; $('nf').value='3080-1'; $('qtd').value='6'; $('nc').value='FORA DO PADRÃO (FOLGADO) (FORN.)'; $('data').value='2025-04-02'; $('visto').value='IVANI'; syncEtq(); }
-function limparEtq(){ ['codigo','peca','denominacao','fornecedor','reserva','nf','qtd','nc','data','visto'].forEach(id=>$(id).value=''); delete $('denominacao').dataset.manual; syncEtq(); }
+function exemploEtq(){ if($('observacao')) $('observacao').value='AGUARDANDO ANÁLISE DA QUALIDADE'; $('codigo').value='46B4200HS001'; $('peca').value='AUT110290654491'; delete $('denominacao').dataset.manual; $('fornecedor').value=''; $('reserva').value='12345678'; $('nf').value='3080-1'; $('qtd').value='6'; $('nc').value='FORA DO PADRÃO (FOLGADO) (FORN.)'; $('data').value='2025-04-02'; $('visto').value='IVANI'; syncEtq(); }
+function limparEtq(){ ['codigo','peca','denominacao','fornecedor','reserva','nf','qtd','nc','data','visto','observacao'].forEach(id=>{ if($(id)) $(id).value=''; }); delete $('denominacao').dataset.manual; syncEtq(); }
 $('denominacao').addEventListener('input',()=>{ $('denominacao').dataset.manual='1'; syncEtq(); });
 ['codigo','peca','fornecedor','reserva','nf','qtd','nc','data','visto'].forEach(id=>$(id).addEventListener('input',()=>{ if(id==='peca') delete $('denominacao').dataset.manual; syncEtq(); }));
 $('cad_codigo').addEventListener('keydown',e=>{ if(e.key==='Enter') $('cad_descricao').focus(); });
