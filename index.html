@@ -146,7 +146,7 @@ tr:hover td{background:#f7f9fb}
 <button class="ghost" onclick="exportarHistCSV()">⬇ Exportar histórico (CSV)</button>
 <button class="red" onclick="limparHist()">🗑 Limpar histórico</button>
 </div>
-<table><thead><tr><th style="width:90px">Nº ETIQUETA</th><th style="width:170px">DATA / HORA</th><th>ETIQUETA IMPRESSA</th><th style="width:28%">OBSERVAÇÃO</th></tr></thead><tbody id="listaHist"></tbody></table>
+<table><thead><tr><th style="width:90px">Nº ETIQUETA</th><th style="width:170px">DATA / HORA</th><th>ETIQUETA IMPRESSA</th><th style="width:20%">OBSERVAÇÃO</th><th style="width:210px">AÇÕES</th></tr></thead><tbody id="listaHist"></tbody></table>
 <div class="empty" id="vazioHist" style="display:none">Nenhuma impressão registrada ainda.</div>
 <p class="hint">Somente impressões ficam registradas aqui. Cadastro, edição, exclusão, importação e exportação NÃO aparecem no histórico.</p>
 </div>
@@ -215,14 +215,10 @@ function salvarTudoAutomatico(){
     salvarFirebase('cadastro_nc/produtos', produtos),
     salvarFirebase('cadastro_nc/historico_impressao', historico),
     salvarFirebase('cadastro_nc/contador_etiqueta', parseInt(localStorage.getItem(KEY_NUM)||'9999',10))
-  ]).then(()=>{ setStatusFirebase('🟢 Salvo automaticamente no Firebase', '#7CFC9A'); })
-    .catch(()=>{ _pendenteAuto=true; });
+  ]).then(()=>{ setStatusFirebase('🟢 Salvo automaticamente no Firebase', '#7CFC9A'); }).catch(()=>{ _pendenteAuto=true; });
 }
-function agendarAutoSave(){
-  _pendenteAuto=true;
-  clearTimeout(_timerAuto);
-  _timerAuto=setTimeout(salvarTudoAutomatico, 800);
-}
+function agendarAutoSave(){ _pendenteAuto=true; clearTimeout(_timerAuto); _timerAuto=setTimeout(salvarTudoAutomatico, 800); }
+function persistirHist(){ localStorage.setItem(KEY_HIST, JSON.stringify(historico)); salvarFirebase('cadastro_nc/historico_impressao', historico); agendarAutoSave(); }
 
 function persistirLocal(){ try{ localStorage.setItem(KEY, JSON.stringify(produtos)); }catch(e){} }
 try{
@@ -259,7 +255,7 @@ window.mostrar = mostrar;
 /* ---------- HISTÓRICO — SOMENTE IMPRESSÃO ---------- */
 const KEY_HIST='elgin_historico_impressao_v1';
 const KEY_HIST_LIMPO='elgin_historico_limpo_v1';
-
+let editandoHist=null, reimprimindoHist=false;
 let historico = safeParse(localStorage.getItem(KEY_HIST), []); if(!Array.isArray(historico)) historico=[];
 // Se vier registro antigo de outro tipo, mantém só impressão
 historico = historico.filter(h => !h.acao || h.acao==='IMPRESSÃO');
@@ -276,21 +272,63 @@ function gerarNumeroUnico(){
   return novo;
 }
 function gerarNovoNumero(){ const n=gerarNumeroUnico(); if(n && $('numero_etiqueta')) $('numero_etiqueta').value=n; syncEtq(); return n; }
-function registrarImpressao(detalhe, observacao, numero){
+function registrarImpressao(detalhe, observacao, numero, campos){
   const agora = new Date();
   const dataHora = agora.toLocaleDateString('pt-BR')+' '+agora.toLocaleTimeString('pt-BR');
-  const obs=(observacao||'').trim().toUpperCase(); const num=(numero||($('numero_etiqueta')?$('numero_etiqueta').value:'')||'').trim(); try{ localStorage.removeItem(KEY_HIST_LIMPO); }catch(e){}
-  historico.unshift({dataHora, acao:'IMPRESSÃO', detalhe, observacao:obs, numero:num});
+  const obs=(observacao||'').trim().toUpperCase(); const num=(numero||($('numero_etiqueta')?$('numero_etiqueta').value:'')||'').trim();
+  try{ localStorage.removeItem(KEY_HIST_LIMPO); }catch(e){}
+  historico.unshift({dataHora, acao:'IMPRESSÃO', detalhe, observacao:obs, numero:num, campos:campos||null});
   if(historico.length>2000) historico = historico.slice(0,2000);
-  localStorage.setItem(KEY_HIST, JSON.stringify(historico));
-  salvarFirebase('cadastro_nc/historico_impressao', historico);
+  persistirHist();
 }
 function renderHist(){
   const busca = (document.getElementById('buscaHist').value||'').trim().toUpperCase();
-  const f = historico.filter(h => !busca || (h.dataHora+' '+h.detalhe+' '+(h.observacao||'')+' '+(h.numero||'')).toUpperCase().includes(busca));
+  const f = historico.map((h,idx)=>({...h,idx})).filter(h => !busca || (h.dataHora+' '+h.detalhe+' '+(h.observacao||'')+' '+(h.numero||'')).toUpperCase().includes(busca));
   document.getElementById('countHist').textContent = f.length+' impressão(ões) • Total: '+historico.length;
   document.getElementById('vazioHist').style.display = f.length?'none':'block';
-    document.getElementById('listaHist').innerHTML = f.map(h=>`<tr><td>${h.numero ? `<span class="num-badge">${h.numero}</span>` : `<span style="color:#999">—</span>`}</td><td>${h.dataHora}</td><td>${h.detalhe}</td><td>${h.observacao ? `<span class="obs-badge">${h.observacao}</span>` : `<span style="color:#999">—</span>`}</td></tr>`).join('');
+  document.getElementById('listaHist').innerHTML = f.map(h=>`<tr><td>${h.numero ? `<span class="num-badge">${h.numero}</span>` : `<span style="color:#999">—</span>`}</td><td>${h.dataHora}</td><td>${h.detalhe}</td><td>${h.observacao ? `<span class="obs-badge">${h.observacao}</span>` : `<span style="color:#999">—</span>`}</td><td><div class="acao"><button class="ghost" onclick="editarHist(${h.idx})">✏️ EDITAR</button><button class="green" onclick="reimprimirHist(${h.idx})">🖨️ REIMPRIMIR</button><button class="red" onclick="excluirHist(${h.idx})">🗑 EXCLUIR</button></div></td></tr>`).join('');
+}
+/* ---------- HISTÓRICO: EDITAR / EXCLUIR / REIMPRIMIR ---------- */
+function parseDetalheHist(detalhe){
+  const c={codigo:'',peca:'',denominacao:'',fornecedor:'',reserva:'',nf:'',qtd:'',nc:'',data:'',visto:''};
+  (detalhe||'').split(' | ').forEach((parte,i)=>{
+    if(i===0) return; // Nº ...
+    if(parte.startsWith('CÓDIGO DO PRODUTO ')) c.codigo=parte.replace('CÓDIGO DO PRODUTO ','');
+    else if(parte.startsWith('CÓDIGO ')) c.peca=parte.replace('CÓDIGO ','');
+    else if(parte.startsWith('NF ')) c.nf=parte.replace('NF ','');
+    else if(parte.startsWith('QTD ')) c.qtd=parte.replace('QTD ','');
+    else if(parte.startsWith('FORNECEDOR ')) c.fornecedor=parte.replace('FORNECEDOR ','');
+    else if(parte.startsWith('RESERVA ')) c.reserva=parte.replace('RESERVA ','');
+    else if(parte.startsWith('DATA ')){ const d=parte.replace('DATA ','').split('/'); if(d.length===3) c.data=d[2]+'-'+d[1]+'-'+d[0]; }
+    else if(parte.startsWith('VISTO ')) c.visto=parte.replace('VISTO ','');
+    else if(!c.denominacao) c.denominacao=parte; // descrição vem sem rótulo
+  });
+  return c;
+}
+function dadosHist(i){ const h=historico[i]; if(!h) return null; return (h.campos && h.campos.codigo!==undefined) ? h.campos : parseDetalheHist(h.detalhe); }
+function carregarHistNaEtiqueta(i){
+  const h=historico[i], c=dadosHist(i); if(!h||!c) return false;
+  ['codigo','peca','denominacao','fornecedor','reserva','nf','qtd','nc','data','visto'].forEach(id=>{ if($(id)) $(id).value=c[id]||''; });
+  if($('observacao')) $('observacao').value=h.observacao||'';
+  if($('numero_etiqueta')) $('numero_etiqueta').value=h.numero||'';
+  if($('denominacao')) $('denominacao').dataset.manual='1';
+  mostrar('etiqueta'); syncEtq(); return true;
+}
+function editarHist(i){
+  editandoHist=i; reimprimindoHist=false;
+  if(carregarHistNaEtiqueta(i)) alert('✏️ Editando a etiqueta Nº '+(historico[i].numero||'')+' — altere os campos e clique em IMPRIMIR ETIQUETA para atualizar esse registro (mantém o mesmo número).');
+}
+function excluirHist(i){
+  if(!historico[i]) return;
+  if(!confirm('Excluir a etiqueta Nº '+(historico[i].numero||'')+' do histórico?\nIsso apaga também no Firebase.')) return;
+  historico.splice(i,1); if(editandoHist===i) editandoHist=null;
+  persistirHist(); renderHist();
+}
+function reimprimirHist(i){
+  if(!historico[i]) return;
+  editandoHist=null; reimprimindoHist=true;
+  if(!carregarHistNaEtiqueta(i)) return;
+  setTimeout(()=>window.print(), 100); // reimprime com o MESMO número, sem criar registro duplicado no histórico
 }
 function exportarHistCSV(){
   let csv='Nº ETIQUETA;DATA / HORA;ETIQUETA IMPRESSA;OBSERVAÇÃO\n'+historico.map(h=>(h.numero||'')+';'+h.dataHora+';'+h.detalhe.replaceAll(';',',')+';'+(h.observacao||'').replaceAll(';',',')).join('\n');
@@ -395,18 +433,35 @@ function syncEtq(){
   }catch(e){ console.error('syncEtq:', e); }
 }
 let impressaoPendente=false;
+function camposAtuaisEtq(){ return {codigo:$('codigo').value, peca:$('peca').value, denominacao:$('denominacao').value, fornecedor:$('fornecedor').value, reserva:$('reserva').value, nf:$('nf').value, qtd:$('qtd').value, nc:$('nc').value, data:$('data').value, visto:$('visto').value}; }
+function detalheEtq(numero){ return 'Nº '+numero+' | CÓDIGO DO PRODUTO '+$('codigo').value+' | CÓDIGO '+$('peca').value+' | '+$('denominacao').value+' | NF '+$('nf').value+' | QTD '+$('qtd').value+' | FORNECEDOR '+$('fornecedor').value+' | RESERVA '+$('reserva').value+' | DATA '+$('v_data').textContent+' | VISTO '+$('visto').value; }
 function imprimirEtiqueta(){
-  const obs=$('observacao')?$('observacao').value:''; const numero=gerarNovoNumero(); if(!numero) return; syncEtq(); impressaoPendente=true;
-  registrarImpressao('Nº '+numero+' | CÓDIGO DO PRODUTO '+$('codigo').value+' | CÓDIGO '+$('peca').value+' | '+$('denominacao').value+' | NF '+$('nf').value+' | QTD '+$('qtd').value+' | FORNECEDOR '+$('fornecedor').value+' | RESERVA '+$('reserva').value+' | DATA '+$('v_data').textContent+' | VISTO '+$('visto').value, obs, numero);
+  const obs=$('observacao')?$('observacao').value:'';
+  let numero, editando=editandoHist;
+  if(editando!==null && historico[editando]){
+    numero=($('numero_etiqueta')?$('numero_etiqueta').value:'')||historico[editando].numero; // edição mantém o mesmo número
+  } else {
+    numero=gerarNovoNumero(); if(!numero) return;
+  }
+  syncEtq(); impressaoPendente=true;
+  if(editando!==null && historico[editando]){
+    const agora=new Date(); const dataHora=agora.toLocaleDateString('pt-BR')+' '+agora.toLocaleTimeString('pt-BR');
+    historico[editando]={dataHora, acao:'IMPRESSÃO', detalhe:detalheEtq(numero), observacao:obs.trim().toUpperCase(), numero, campos:camposAtuaisEtq()};
+    try{ localStorage.removeItem(KEY_HIST_LIMPO); }catch(e){}
+    persistirHist(); editandoHist=null;
+  } else {
+    registrarImpressao(detalheEtq(numero), obs, numero, camposAtuaisEtq());
+  }
   mostrar('etiqueta'); syncEtq(); setTimeout(()=>window.print(), 100);
 }
 window.addEventListener('beforeprint', ()=>{ try{ syncEtq(); }catch(e){} mostrar('etiqueta'); });
 window.addEventListener('afterprint', ()=>{
-  if(impressaoPendente){ impressaoPendente=false; limparEtq(false); mostrar('etiqueta'); }
+  if(reimprimindoHist){ reimprimindoHist=false; limparEtq(false); mostrar('etiqueta'); }
+  else if(impressaoPendente){ impressaoPendente=false; limparEtq(false); mostrar('etiqueta'); }
   else if(telaAtual && telaAtual!=='etiqueta') mostrar(telaAtual);
 });
 function exemploEtq(){ if($('numero_etiqueta')) $('numero_etiqueta').value=gerarNumeroUnico(); if($('observacao')) $('observacao').value='AGUARDANDO ANÁLISE DA QUALIDADE'; $('codigo').value='46B4200HS001'; $('peca').value='AUT110290654491'; delete $('denominacao').dataset.manual; $('fornecedor').value=''; $('reserva').value='12345678'; $('nf').value='3080-1'; $('qtd').value='6'; $('nc').value='FORA DO PADRÃO (FOLGADO) (FORN.)'; $('data').value='2025-04-02'; $('visto').value='IVANI'; syncEtq(); }
-function limparEtq(gerarNovo=true){ ['codigo','peca','denominacao','fornecedor','reserva','nf','qtd','nc','data','visto','observacao'].forEach(id=>{ if($(id)) $(id).value=''; }); if($('numero_etiqueta')) $('numero_etiqueta').value=gerarNovo?gerarNumeroUnico():''; delete $('denominacao').dataset.manual; syncEtq(); }
+function limparEtq(gerarNovo=true){ ['codigo','peca','denominacao','fornecedor','reserva','nf','qtd','nc','data','visto','observacao'].forEach(id=>{ if($(id)) $(id).value=''; }); if($('numero_etiqueta')) $('numero_etiqueta').value=gerarNovo?gerarNumeroUnico():''; editandoHist=null; delete $('denominacao').dataset.manual; syncEtq(); }
 $('denominacao').addEventListener('input',()=>{ $('denominacao').dataset.manual='1'; syncEtq(); });
 ['codigo','peca','fornecedor','reserva','nf','qtd','nc','data','visto'].forEach(id=>$(id).addEventListener('input',()=>{ if(id==='peca') delete $('denominacao').dataset.manual; syncEtq(); }));
 $('cad_codigo').addEventListener('keydown',e=>{ if(e.key==='Enter') $('cad_descricao').focus(); });
@@ -478,8 +533,6 @@ try{ syncEtq(); }catch(e){ console.error('syncEtq init:', e); }
 // Liga os botões do menu de novo por JS - garante que clicam mesmo se o onclick inline falhar
 [['abaCad','cadastro'],['abaEtq','etiqueta'],['abaHist','historico']].forEach(([id,t])=>{ const b=document.getElementById(id); if(b) b.addEventListener('click', ()=>mostrar(t)); });
 if($('numero_etiqueta') && !$('numero_etiqueta').value){ const prox=parseInt(localStorage.getItem(KEY_NUM)||'9999',10)+1; $('numero_etiqueta').value=String(prox>99999?10000:prox).padStart(5,'0'); } syncEtq();
-
-/* Gatilhos do auto-save */
 setInterval(()=>{ if(_pendenteAuto) salvarTudoAutomatico(); }, 10000);
 window.addEventListener('online', ()=>{ agendarAutoSave(); });
 document.addEventListener('visibilitychange', ()=>{ if(document.hidden && _pendenteAuto) salvarTudoAutomatico(); });
@@ -489,6 +542,5 @@ window.addEventListener('beforeunload', ()=>{
     try{ fetch(FIREBASE_URL+'cadastro_nc/historico_impressao.json',{method:'PUT',body:JSON.stringify(historico),keepalive:true}); }catch(e){}
   }
 });
-
 mostrar('cadastro');
 </script></body></html>
