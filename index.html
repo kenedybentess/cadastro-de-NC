@@ -223,6 +223,9 @@ function mostrar(tela){
 window.mostrar = mostrar;
 /* ---------- HISTÓRICO — SOMENTE IMPRESSÃO ---------- */
 const KEY_HIST='elgin_historico_impressao_v1';
+const KEY_HIST_LIMPO='elgin_historico_limpo_em_v1';
+let historicoLimpoEm = parseInt(localStorage.getItem(KEY_HIST_LIMPO)||'0',10) || 0;
+let ignorarEcoHistorico = false; // ignora o eco do Firebase da nossa própria limpeza
 let historico = safeParse(localStorage.getItem(KEY_HIST), []); if(!Array.isArray(historico)) historico=[];
 // Se vier registro antigo de outro tipo, mantém só impressão
 historico = historico.filter(h => !h.acao || h.acao==='IMPRESSÃO');
@@ -258,7 +261,25 @@ function exportarHistCSV(){
   let csv='Nº ETIQUETA;DATA / HORA;ETIQUETA IMPRESSA;OBSERVAÇÃO\n'+historico.map(h=>(h.numero||'')+';'+h.dataHora+';'+h.detalhe.replaceAll(';',',')+';'+(h.observacao||'').replaceAll(';',',')).join('\n');
   const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv'})); a.download='historico_impressao_nc.csv'; a.click();
 }
-function limparHist(){ if(!confirm('Apagar TODO o histórico de impressão?')) return; historico=[]; localStorage.setItem(KEY_HIST, JSON.stringify(historico)); salvarFirebase('cadastro_nc/historico_impressao', historico); renderHist(); }
+function limparHist(){
+  if(!confirm('Apagar TODO o histórico de impressão? Isso apaga em TODOS os computadores.')) return;
+  // 1. Marca a limpeza com data/hora - outras abas/PCs vão respeitar e NÃO vão reenviar o antigo
+  historicoLimpoEm = Date.now();
+  localStorage.setItem(KEY_HIST_LIMPO, String(historicoLimpoEm));
+  // 2. Limpa local
+  historico = [];
+  localStorage.setItem(KEY_HIST, JSON.stringify(historico));
+  renderHist();
+  // 3. Apaga de verdade no Firebase - remove() e não set([]), porque [] vira null e era ignorado
+  if(firebaseOK && db){
+    ignorarEcoHistorico = true;
+    // Salva o carimbo primeiro, depois apaga
+    db.ref('cadastro_nc/historico_meta').set({limpoEm: historicoLimpoEm}).then(()=>{
+      return db.ref('cadastro_nc/historico_impressao').remove();
+    }).then(()=>{ console.log('Histórico apagado no Firebase'); setTimeout(()=>{ ignorarEcoHistorico=false; }, 500); })
+    .catch(err=>{ ignorarEcoHistorico=false; console.error('Erro ao limpar no Firebase:', err); alert('Apagou só neste PC. Erro no Firebase: '+(err.code||err.message)+' - confira as Regras.'); });
+  }
+}
 /* ---------- CADASTRO ---------- */
 const KEY='elgin_cadastro_produtos_v1';
 let produtos = safeParse(localStorage.getItem(KEY), []); if(!Array.isArray(produtos)) produtos=[];
@@ -404,11 +425,38 @@ if(firebaseOK && db){
   });
 
   db.ref('cadastro_nc/contador_etiqueta').on('value', snap => { const v=snap.val(); if(typeof v==='number' && v>9999){ const local=parseInt(localStorage.getItem(KEY_NUM)||'9999',10); if(v>local) localStorage.setItem(KEY_NUM, String(v)); } });
+  // Carimbo de limpeza - se outro PC limpou, este também limpa e não reenvia o antigo
+  db.ref('cadastro_nc/historico_meta').on('value', snap => {
+    const meta = snap.val();
+    if(meta && meta.limpoEm && meta.limpoEm > historicoLimpoEm){
+      historicoLimpoEm = meta.limpoEm;
+      localStorage.setItem(KEY_HIST_LIMPO, String(historicoLimpoEm));
+      historico = [];
+      localStorage.setItem(KEY_HIST, JSON.stringify(historico));
+      renderHist();
+    }
+  });
   db.ref('cadastro_nc/historico_impressao').on('value', snap => {
+    if(ignorarEcoHistorico) return; // é o eco da nossa própria limpeza, ignora
     const dados = snap.val();
-    if(dados && Array.isArray(dados)){
-      // evita loop
+    // null = apagado no Firebase (remove) -> mantém limpo, NÃO restaura nada
+    if(dados === null || dados === undefined){
+      if(historico.length !== 0){
+        historico = [];
+        localStorage.setItem(KEY_HIST, JSON.stringify(historico));
+        renderHist();
+      }
+      return;
+    }
+    if(Array.isArray(dados)){
       if(JSON.stringify(dados) !== JSON.stringify(historico)){
+        // Se já limpamos depois que esses dados foram criados, não deixa voltar
+        // (dados antigos reenviados por outra aba aberta antes da limpeza)
+        if(historicoLimpoEm && historico.length===0){
+          // Nosso local está limpo por limpeza recente: re-apaga na nuvem em vez de aceitar o antigo
+          db.ref('cadastro_nc/historico_impressao').remove().catch(()=>{});
+          return;
+        }
         historico = dados.filter(h => !h.acao || h.acao==='IMPRESSÃO');
         localStorage.setItem(KEY_HIST, JSON.stringify(historico));
         renderHist();
@@ -425,6 +473,16 @@ if(firebaseOK && db){
 try{ renderCad(); }catch(e){ console.error('renderCad:', e); }
 try{ aplicarAjuste(); }catch(e){ console.error('aplicarAjuste:', e); }
 try{ syncEtq(); }catch(e){ console.error('syncEtq init:', e); }
+// Se limpar em outra aba do mesmo PC, limpa aqui também (não deixa voltar)
+window.addEventListener('storage', (e)=>{
+  if(e.key===KEY_HIST_LIMPO){
+    const v=parseInt(e.newValue||'0',10)||0;
+    if(v>historicoLimpoEm){ historicoLimpoEm=v; historico=[]; localStorage.setItem(KEY_HIST, JSON.stringify([])); try{ renderHist(); }catch(_){} }
+  }
+  if(e.key===KEY_HIST && e.newValue!==null){
+    try{ const v=safeParse(e.newValue, []); if(Array.isArray(v) && JSON.stringify(v)!==JSON.stringify(historico)){ historico=v; renderHist(); } }catch(_){}
+  }
+});
 // Liga os botões do menu de novo por JS - garante que clicam mesmo se o onclick inline falhar
 [['abaCad','cadastro'],['abaEtq','etiqueta'],['abaHist','historico']].forEach(([id,t])=>{ const b=document.getElementById(id); if(b) b.addEventListener('click', ()=>mostrar(t)); });
 if($('numero_etiqueta') && !$('numero_etiqueta').value){ const prox=parseInt(localStorage.getItem(KEY_NUM)||'9999',10)+1; $('numero_etiqueta').value=String(prox>99999?10000:prox).padStart(5,'0'); } syncEtq();
