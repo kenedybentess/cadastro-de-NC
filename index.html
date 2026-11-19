@@ -66,7 +66,6 @@ tr:hover td{background:#f7f9fb}
 <button id="abaHist" onclick="mostrar('historico')">🕒 HISTÓRICO DE IMPRESSÃO</button>
 </nav>
 <main>
-
 <section id="tela-cadastro">
 <div class="card">
 <h2>📋 Cadastrar produto</h2>
@@ -164,7 +163,9 @@ function safeParse(txt, fallback){ try{ return JSON.parse(txt||''); }catch(e){ c
 /* ---------- FIREBASE ---------- */
 const FIREBASE_URL = 'https://cadastro-de-nc-default-rtdb.firebaseio.com/';
 // PREENCHA com a config do seu projeto (Console > Configurações do projeto > Geral > Seus apps)
-const FIREBASE_CONFIG = {
+const KEY_CFG_FB='elgin_firebase_config_v1';
+let _cfgSalva=null; try{ _cfgSalva=JSON.parse(localStorage.getItem(KEY_CFG_FB)||'null'); }catch(e){ _cfgSalva=null; }
+const FIREBASE_CONFIG = (_cfgSalva && _cfgSalva.apiKey) ? _cfgSalva : {
   apiKey: "SUA_API_KEY_AQUI",
   authDomain: "cadastro-de-nc.firebaseapp.com",
   databaseURL: FIREBASE_URL,
@@ -173,21 +174,54 @@ const FIREBASE_CONFIG = {
   messagingSenderId: "000000000000",
   appId: "1:000000000000:web:xxxxxxxx"
 };
+function salvarConfigFirebase(){
+  const el=$('cfgFirebase'); const msg=$('msgCfgFirebase');
+  try{
+    const cfg=JSON.parse(el.value.trim());
+    if(!cfg.apiKey || !cfg.databaseURL) throw new Error('Faltam apiKey ou databaseURL');
+    localStorage.setItem(KEY_CFG_FB, JSON.stringify(cfg));
+    msg.textContent='✅ Config salva! Recarregando para reconectar...'; msg.style.color='#1a9a4b';
+    setTimeout(()=>location.reload(), 600);
+  }catch(e){ msg.textContent='❌ Config inválida: '+e.message+' — cole o objeto firebaseConfig completo, entre { }.'; msg.style.color='#d92d20'; }
+}
+function forcarEnvioFirebase(){
+  const msg=$('msgCfgFirebase');
+  Promise.all([
+    salvarFirebase('cadastro_nc/produtos', produtos),
+    salvarFirebase('cadastro_nc/historico_impressao', historico),
+    salvarFirebase('cadastro_nc/contador_etiqueta', parseInt(localStorage.getItem(KEY_NUM)||'9999',10))
+  ]).then(()=>{ msg.textContent='✅ Envio forçado concluído — confira no Console do Firebase > Realtime Database > cadastro_nc'; msg.style.color='#1a9a4b'; });
+}
+function testarFirebase(){
+  const msg=$('msgCfgFirebase');
+  if(!firebaseOK || !db){ msg.textContent='❌ SDK não iniciou. Veja o status no topo / F12 > Console.'; msg.style.color='#d92d20'; return; }
+  db.ref('cadastro_nc/_teste_conexao').set({ok:true, quando:new Date().toISOString()}).then(()=>{
+    msg.textContent='✅ Conexão OK! Um nó cadastro_nc/_teste_conexao foi criado no Firebase.'; msg.style.color='#1a9a4b';
+  }).catch(e=>{ msg.textContent='❌ Teste falhou: '+e.code+' — '+e.message; msg.style.color='#d92d20'; });
+}
+window.salvarConfigFirebase=salvarConfigFirebase; window.forcarEnvioFirebase=forcarEnvioFirebase; window.testarFirebase=testarFirebase;
 let db = null, firebaseOK = false, isSyncing = false;
 function setStatusFirebase(txt, cor){
   const el = document.getElementById('statusFirebase');
   if(el){ el.textContent = txt; el.style.background = cor; el.style.color = cor==='#ffc107'?'#000':'#fff'; }
   console.log('[Firebase Status]', txt);
 }
+function salvarFirebaseREST(caminho, valor){
+  // Fallback: grava direto via REST, sem depender do SDK/apiKey
+  return fetch(FIREBASE_URL + caminho + '.json', {method:'PUT', body: JSON.stringify(valor)}).then(r=>{
+    if(!r.ok) throw new Error('HTTP '+r.status+' — verifique as Regras do Realtime Database');
+    setStatusFirebase('🟢 Firebase salvo via REST — sincronizando', '#7CFC9A');
+  }).catch(err=>{ console.error('REST Firebase falhou:', err); setStatusFirebase('🔴 Firebase REST: '+err.message, '#ff8a80'); });
+}
 function salvarFirebase(caminho, valor){
-  if(!firebaseOK || !db) return Promise.resolve();
   if(isSyncing) return Promise.resolve();
-  return db.ref(caminho).set(valor).catch(err=>{
-    console.error('Erro ao salvar no Firebase:', err);
-    let msg = err.code || err.message;
-    if(msg.includes('PERMISSION_DENIED')) msg = 'Regras negaram acesso (PERMISSION_DENIED) - libere em Console > Realtime Database > Regras';
-    setStatusFirebase('🔴 Firebase: '+msg, '#ff8a80');
-  });
+  if(firebaseOK && db){
+    return db.ref(caminho).set(valor).then(()=>{ setStatusFirebase('🟢 Firebase conectado — salvo em '+caminho, '#7CFC9A'); }).catch(err=>{
+      console.error('Erro ao salvar no Firebase (SDK), tentando REST:', err);
+      return salvarFirebaseREST(caminho, valor);
+    });
+  }
+  return salvarFirebaseREST(caminho, valor);
 }
 function persistirLocal(){ try{ localStorage.setItem(KEY, JSON.stringify(produtos)); }catch(e){} }
 try{
@@ -422,6 +456,7 @@ if(firebaseOK && db){
 }
 
 // persistirLocal já definido acima
+try{ const c=localStorage.getItem(KEY_CFG_FB); if(c && $('cfgFirebase')) $('cfgFirebase').value=c; }catch(e){}
 try{ renderCad(); }catch(e){ console.error('renderCad:', e); }
 try{ aplicarAjuste(); }catch(e){ console.error('aplicarAjuste:', e); }
 try{ syncEtq(); }catch(e){ console.error('syncEtq init:', e); }
