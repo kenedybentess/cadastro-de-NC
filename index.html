@@ -191,7 +191,7 @@ tr:hover td{background:#f7f9fb}
 </div>
 <label style="margin-top:10px"><input type="checkbox" id="usr_admin" style="width:auto"> ⭐ Este usuário é ADMINISTRADOR (acesso total, pode gerenciar usuários)</label>
 <div class="btns"><button class="primary" id="btnSalvarUsr" onclick="salvarUsuario()">💾 SALVAR USUÁRIO</button><button class="ghost" onclick="cancelarEdicaoUsuario()">Limpar</button></div>
-<p class="hint" id="msgUsr">Somente o administrador pode cadastrar, editar e excluir usuários.</p>
+<p class="hint" id="msgUsr">Somente o administrador pode cadastrar, editar e excluir usuários. Os usuários agora são salvos na nuvem e aparecem em todos os computadores.</p>
 </div>
 <div class="card" style="margin-top:18px"><h2>👥 Usuários cadastrados</h2><div id="listaUsuarios"></div></div>
 </section>
@@ -417,11 +417,13 @@ function limparHist(){
   .catch(err=>{ console.error('Falha ao apagar histórico no Firebase:', err); setStatusFirebase('🔴 Não consegui apagar no Firebase: '+err.message, '#ff8a80'); alert('O histórico foi limpo nesta tela, mas NÃO consegui apagar no Firebase: '+err.message+'\nVerifique a internet e as Regras do Realtime Database e tente limpar novamente.'); });
 }
 
-/* ---------- LOGIN / USUÁRIOS / ACESSOS ---------- */
+/* ---------- LOGIN / USUÁRIOS / ACESSOS (salvos na nuvem) ---------- */
 const KEY_USERS='elgin_usuarios_v1', KEY_SESSAO='elgin_sessao_v1';
+let usuariosCarregadosDaNuvem=false, ultimoUsuariosEnviado='';
 function hashSenha(s){ let h1=0xdeadbeef, h2=0x41c6ce57; const str='elgin-nc-'+String(s||''); for(let i=0;i<str.length;i++){ const ch=str.charCodeAt(i); h1=Math.imul(h1^ch,2654435761); h2=Math.imul(h2^ch,1597334677); } h1=Math.imul(h1^(h1>>>16),2246822507)^Math.imul(h2^(h2>>>13),3266489909); h2=Math.imul(h2^(h2>>>16),2246822507)^Math.imul(h1^(h1>>>13),3266489909); return (h2>>>0).toString(16).padStart(8,'0')+(h1>>>0).toString(16).padStart(8,'0'); }
 function carregarUsuarios(){ try{ const a=JSON.parse(localStorage.getItem(KEY_USERS)||'[]'); return Array.isArray(a)?a:[]; }catch(e){ return []; } }
-function salvarUsuarios(a){ localStorage.setItem(KEY_USERS, JSON.stringify(a)); }
+/* CORREÇÃO: antes salvarUsuarios() só gravava neste navegador. Agora grava local + nuvem. */
+function salvarUsuarios(a){ try{ localStorage.setItem(KEY_USERS, JSON.stringify(a)); }catch(e){} const chave=JSON.stringify(a); if(chave===ultimoUsuariosEnviado) return; ultimoUsuariosEnviado=chave; try{ if(typeof salvarFirebase==='function' && firebaseOK){ salvarFirebase('cadastro_nc/usuarios', a); } else { fetch('https://cadastro-de-nc-default-rtdb.firebaseio.com/cadastro_nc/usuarios.json',{method:'PUT',body:chave}).catch(()=>{}); } }catch(e){} }
 function garantirAdmin(){ let us=carregarUsuarios(); if(!us.some(u=>u.email==='kenedy.santos@elgin.com.br')){ us.unshift({nome:'KENEDY SANTOS', email:'kenedy.santos@elgin.com.br', senha:hashSenha('22102009'), admin:true, ativo:true, permissoes:{produtos:true,etiqueta:true,historico:true,backup:true,usuarios:true}}); salvarUsuarios(us); } return us; }
 garantirAdmin();
 function usuarioAtual(){ try{ const s=JSON.parse(sessionStorage.getItem(KEY_SESSAO)||'null'); if(!s) return null; return carregarUsuarios().find(u=>u.email===s.email && u.ativo!==false)||null; }catch(e){ return null; } }
@@ -436,7 +438,35 @@ if($('login_senha')) $('login_senha').addEventListener('keydown', e=>{ if(e.key=
 if($('login_email')) $('login_email').addEventListener('keydown', e=>{ if(e.key==='Enter') fazerLogin(); });
 if(!usuarioAtual()){ setTimeout(mostrarLogin, 50); } else { setTimeout(()=>{ esconderLogin(); aplicarPermissoesNaTela(); }, 50); }
 let editandoUsuario=null;
-function salvarUsuario(){ const atual=usuarioAtual(); if(!atual || !atual.admin){ alert('Somente o administrador pode cadastrar usuários.'); return; } const nome=($('usr_nome').value||'').trim().toUpperCase(), email=($('usr_email').value||'').trim().toLowerCase(); const senha=$('usr_senha').value||'', senha2=$('usr_senha2').value||''; const msg=$('msgUsr'); if(!nome||!email){ msg.textContent='⚠️ Preencha NOME e E-MAIL.'; msg.style.color='#d92d20'; return; } const us=carregarUsuarios(); if(us.some((u,i)=>u.email===email && i!==editandoUsuario)){ msg.textContent='⚠️ Este e-mail já está cadastrado.'; msg.style.color='#d92d20'; return; } const permissoes={produtos:$('perm_produtos').checked, etiqueta:$('perm_etiqueta').checked, historico:$('perm_historico').checked, backup:$('perm_backup').checked, usuarios:$('perm_usuarios').checked}; const admin=$('usr_admin').checked; if(editandoUsuario!==null){ const u=us[editandoUsuario]; u.nome=nome; u.email=email; if(senha){ if(senha.length<6){ msg.textContent='⚠️ Senha mínima de 6 caracteres.'; msg.style.color='#d92d20'; return; } u.senha=hashSenha(senha); } u.permissoes=permissoes; u.admin=admin; msg.textContent='✅ Usuário atualizado: '+nome; } else { if(!senha || senha.length<6){ msg.textContent='⚠️ Senha mínima de 6 caracteres.'; msg.style.color='#d92d20'; return; } if(senha!==senha2){ msg.textContent='⚠️ As senhas não conferem.'; msg.style.color='#d92d20'; return; } us.push({nome, email, senha:hashSenha(senha), admin, ativo:true, permissoes}); msg.textContent='✅ Usuário cadastrado: '+nome+' ('+email+')'; } msg.style.color='#1a9a4b'; salvarUsuarios(us); cancelarEdicaoUsuario(); renderUsuarios(); }
+function salvarUsuario(){
+  const msg=$('msgUsr');
+  const atual=usuarioAtual();
+  if(!atual || !atual.admin){ msg.textContent='⛔ Somente o administrador pode cadastrar usuários. Você está logado como: '+(atual?atual.email:'ninguém')+'. Saia e entre com o admin.'; msg.style.color='#d92d20'; alert('Somente o administrador pode cadastrar usuários.'); return; }
+  const nome=($('usr_nome').value||'').trim().toUpperCase(), email=($('usr_email').value||'').trim().toLowerCase();
+  const senha=$('usr_senha').value||'', senha2=$('usr_senha2').value||'';
+  if(!nome||!email){ msg.textContent='⚠️ Preencha NOME e E-MAIL.'; msg.style.color='#d92d20'; return; }
+  if(!email.includes('@')){ msg.textContent='⚠️ E-mail inválido.'; msg.style.color='#d92d20'; return; }
+  const us=carregarUsuarios();
+  if(us.some((u,i)=>u.email===email && i!==editandoUsuario)){ msg.textContent='⚠️ Este e-mail já está cadastrado: '+email; msg.style.color='#d92d20'; return; }
+  const permissoes={produtos:$('perm_produtos').checked, etiqueta:$('perm_etiqueta').checked, historico:$('perm_historico').checked, backup:$('perm_backup').checked, usuarios:$('perm_usuarios').checked};
+  const admin=$('usr_admin').checked;
+  if(editandoUsuario!==null){
+    const u=us[editandoUsuario]; if(!u){ msg.textContent='⚠️ Erro: usuário não encontrado. Recarregue a página.'; return; }
+    u.nome=nome; u.email=email; if(senha){ if(senha.length<6){ msg.textContent='⚠️ Senha mínima de 6 caracteres.'; msg.style.color='#d92d20'; return; } u.senha=hashSenha(senha); }
+    u.permissoes=permissoes; u.admin=admin; msg.textContent='✅ Usuário atualizado: '+nome;
+  } else {
+    if(!senha || senha.length<6){ msg.textContent='⚠️ Senha mínima de 6 caracteres.'; msg.style.color='#d92d20'; return; }
+    if(senha!==senha2){ msg.textContent='⚠️ As senhas não conferem.'; msg.style.color='#d92d20'; return; }
+    us.push({nome, email, senha:hashSenha(senha), admin, ativo:true, permissoes});
+    msg.textContent='✅ Usuário cadastrado: '+nome+' ('+email+') — salvo na nuvem, já aparece em todos os PCs.';
+  }
+  msg.style.color='#1a9a4b';
+  salvarUsuarios(us);
+  // Prova de que salvou: relê e confere
+  const conf=carregarUsuarios().some(u=>u.email===email);
+  if(!conf){ msg.textContent='❌ Não consegui salvar (navegador bloqueou o armazenamento). Tente em outra aba / outro navegador.'; msg.style.color='#d92d20'; return; }
+  cancelarEdicaoUsuario(); renderUsuarios();
+}
 function cancelarEdicaoUsuario(){ editandoUsuario=null; ['usr_nome','usr_email','usr_senha','usr_senha2'].forEach(id=>{ if($(id)) $(id).value=''; }); $('perm_produtos').checked=true; $('perm_etiqueta').checked=true; $('perm_historico').checked=true; $('perm_backup').checked=false; $('perm_usuarios').checked=false; $('usr_admin').checked=false; $('btnSalvarUsr').textContent='💾 SALVAR USUÁRIO'; }
 function editarUsuario(i){ const u=carregarUsuarios()[i]; if(!u) return; editandoUsuario=i; $('usr_nome').value=u.nome; $('usr_email').value=u.email; $('usr_senha').value=''; $('usr_senha2').value=''; $('perm_produtos').checked=!!(u.permissoes&&u.permissoes.produtos); $('perm_etiqueta').checked=!!(u.permissoes&&u.permissoes.etiqueta); $('perm_historico').checked=!!(u.permissoes&&u.permissoes.historico); $('perm_backup').checked=!!(u.permissoes&&u.permissoes.backup); $('perm_usuarios').checked=!!(u.permissoes&&u.permissoes.usuarios); $('usr_admin').checked=!!u.admin; $('btnSalvarUsr').textContent='✅ ATUALIZAR USUÁRIO'; $('msgUsr').textContent='✏️ Editando: '+u.nome+' — deixe a senha em branco para manter a atual.'; window.scrollTo({top:0,behavior:'smooth'}); }
 function alternarAtivoUsuario(i){ const us=carregarUsuarios(); const u=us[i]; if(!u) return; if(u.email==='kenedy.santos@elgin.com.br'){ alert('O administrador principal não pode ser desativado.'); return; } u.ativo = u.ativo===false ? true : false; salvarUsuarios(us); renderUsuarios(); }
@@ -630,6 +660,20 @@ if(firebaseOK && db){
     setStatusFirebase('🔴 Firebase produtos: '+detalhe, '#ff8a80');
   });
 
+  db.ref('cadastro_nc/usuarios').on('value', snap => {
+    const dados=snap.val(); usuariosCarregadosDaNuvem=true;
+    if(Array.isArray(dados) && dados.length){
+      ultimoUsuariosEnviado=JSON.stringify(dados);
+      const locais=carregarUsuarios();
+      // A nuvem vence, mas nunca perde o admin
+      const temAdmin=dados.some(u=>u.email==='kenedy.santos@elgin.com.br');
+      const final = temAdmin ? dados : [locais.find(u=>u.email==='kenedy.santos@elgin.com.br')].filter(Boolean).concat(dados);
+      if(JSON.stringify(final)!==JSON.stringify(locais)){ try{ localStorage.setItem(KEY_USERS, JSON.stringify(final)); }catch(e){} renderUsuarios(); aplicarPermissoesNaTela(); }
+    } else if(dados===null){
+      // Nuvem vazia: envia o que tem local (admin)
+      const locais=carregarUsuarios(); if(locais.length) salvarFirebase('cadastro_nc/usuarios', locais);
+    }
+  });
   db.ref('cadastro_nc/backups_produtos').on('value', snap => { const dados=snap.val(); if(Array.isArray(dados) && dados.length){ const locais=listarBackupsLocal(); if(!locais.length){ salvarBackupsLocal(dados); } } });
   db.ref('cadastro_nc/contador_etiqueta').on('value', snap => { const v=snap.val(); if(typeof v==='number' && v>9999){ const local=parseInt(localStorage.getItem(KEY_NUM)||'9999',10); if(v>local) localStorage.setItem(KEY_NUM, String(v)); } });
   db.ref('cadastro_nc/historico_impressao').on('value', snap => {
