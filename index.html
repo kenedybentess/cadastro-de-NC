@@ -175,6 +175,8 @@ const FIREBASE_CONFIG = (_cfgSalva && _cfgSalva.apiKey) ? _cfgSalva : {
   appId: "1:000000000000:web:xxxxxxxx"
 };
 let db = null, firebaseOK = false, isSyncing = false;
+let firebaseProdutosCarregado = false; // só deixa salvar na nuvem depois do 1º snapshot
+let salvamentoPendenteAntesFirebase = false;
 function setStatusFirebase(txt, cor){
   const el = document.getElementById('statusFirebase');
   if(el){ el.textContent = txt; el.style.background = cor; el.style.color = cor==='#ffc107'?'#000':'#fff'; }
@@ -193,7 +195,18 @@ function apagarFirebase(caminho){
   return viaSDK.catch(()=> fetch(FIREBASE_URL + caminho + '.json', {method:'DELETE'}).then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); }));
 }
 function salvarFirebase(caminho, valor){
-  if(Array.isArray(valor) && valor.length===0) return apagarFirebase(caminho).catch(err=>{ console.error('Erro ao apagar no Firebase:', err); setStatusFirebase('🔴 Firebase: '+err.message, '#ff8a80'); });
+  // TRAVA ANTI-APAGAMENTO: nunca envia produtos antes de saber o que tem na nuvem.
+  // Sem isso, abrir em PC limpo criava o produto-exemplo e apagava a lista real.
+  if(caminho==='cadastro_nc/produtos' && firebaseOK && !firebaseProdutosCarregado){
+    salvamentoPendenteAntesFirebase = true;
+    console.warn('salvarFirebase bloqueado: aguardando 1º snapshot de produtos');
+    return Promise.resolve();
+  }
+  if(Array.isArray(valor) && valor.length===0){
+    // Nunca apaga a nuvem por causa de um localStorage vazio / ainda não carregado
+    if(caminho==='cadastro_nc/produtos' && !firebaseProdutosCarregado) return Promise.resolve();
+    return apagarFirebase(caminho).catch(err=>{ console.error('Erro ao apagar no Firebase:', err); setStatusFirebase('🔴 Firebase: '+err.message, '#ff8a80'); });
+  }
   const chave=JSON.stringify(valor);
   if(ultimoEnviado[caminho]===chave) return Promise.resolve();
   ultimoEnviado[caminho]=chave;
@@ -358,7 +371,11 @@ function limparHist(){
 const KEY='elgin_cadastro_produtos_v1';
 let produtos = safeParse(localStorage.getItem(KEY), []); if(!Array.isArray(produtos)) produtos=[];
 let editando = null;
-if(produtos.length===0){ produtos=[{codigo:'AUT110290654491',descricao:'BIELA PLASTICO PRETO L42PRO'}]; persistirCad(); }
+// CORRIGIDO: não cria nem envia o produto-exemplo sozinho.
+// Antes, abrir em PC limpo criava só esse 1 produto e apagava sua lista real na nuvem.
+// Agora o exemplo só aparece na tela se a nuvem também estiver vazia (ver listener do Firebase).
+const _produtosVieramVazios = produtos.length===0;
+if(_produtosVieramVazios){ produtos=[{codigo:'AUT110290654491',descricao:'BIELA PLASTICO PRETO L42PRO'}]; /* só em memória, sem persistir */ }
 function persistirCad(){ localStorage.setItem(KEY, JSON.stringify(produtos)); salvarFirebase('cadastro_nc/produtos', produtos); agendarAutoSave(); }
 function norm(s){ return (s||'').trim().toUpperCase(); }
 function buscarDescricao(codigo){ const p = produtos.find(x=>x.codigo===norm(codigo)); return p? p.descricao : ''; }
@@ -493,18 +510,27 @@ if(firebaseOK && db){
   });
 
   db.ref('cadastro_nc/produtos').on('value', snap => {
-    const dados = snap.val();
+    firebaseProdutosCarregado = true;
+    let dados = snap.val();
+    // Firebase pode devolver objeto {0:...,1:...} em vez de array quando houve exclusão. Normaliza:
+    if(dados && !Array.isArray(dados) && typeof dados==='object'){
+      dados = Object.keys(dados).sort((a,b)=>Number(a)-Number(b)).map(k=>dados[k]).filter(Boolean);
+    }
     if(dados && Array.isArray(dados)){
+      // Se a nuvem tem sua lista real, ela vence o exemplo local
       if(JSON.stringify(dados) !== JSON.stringify(produtos)){
         ultimoEnviado['cadastro_nc/produtos']=JSON.stringify(dados);
-        produtos = dados;
+        produtos = dados.filter(p=>p && p.codigo);
         persistirLocal();
         editando = null;
         renderCad(); syncEtq();
       }
+      // Se havia salvamento pendente de antes do carregamento, agora pode enviar
+      if(salvamentoPendenteAntesFirebase){ salvamentoPendenteAntesFirebase=false; salvarFirebase('cadastro_nc/produtos', produtos); }
     } else if(dados === null){
-      // primeira vez, envia local para nuvem
+      // Nuvem vazia de verdade: aí sim pode enviar o que tem local (exemplo ou sua lista)
       if(produtos.length>0) salvarFirebase('cadastro_nc/produtos', produtos);
+      if(salvamentoPendenteAntesFirebase){ salvamentoPendenteAntesFirebase=false; }
     }
     setStatusFirebase('🟢 Firebase conectado — sincronizando', '#7CFC9A');
   }, err => {
@@ -537,6 +563,7 @@ if(firebaseOK && db){
 
 } else {
   setStatusFirebase('🔴 Firebase: não iniciou — usando apenas dados locais', '#ff8a80');
+  firebaseProdutosCarregado = true; // sem Firebase, não há nuvem para proteger, libera salvamento local
   console.warn('Firebase desabilitado, app rodando offline');
 }
 
